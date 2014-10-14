@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -61,6 +62,7 @@ bool thread_mlfqs;
 
 static void kernel_thread (thread_func *, void *aux);
 
+static void thread_check_ticks (struct thread *t, void *aux);
 static void idle (void *aux UNUSED);
 static struct thread *running_thread (void);
 static struct thread *next_thread_to_run (void);
@@ -117,6 +119,22 @@ thread_start (void)
   sema_down (&idle_started);
 }
 
+
+static void
+thread_check_ticks (struct thread *t, void *aux)
+{
+  
+  if (t->status == THREAD_BLOCKED && t->ticks != 0)
+  {
+    if(t->ticks <= timer_ticks())
+    {
+      t->ticks = 0;
+      thread_unblock(t);
+    }  
+  }
+    
+}
+
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
 void
@@ -133,6 +151,8 @@ thread_tick (void)
 #endif
   else
     kernel_ticks++;
+
+  thread_foreach(thread_check_ticks, NULL);
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
