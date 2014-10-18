@@ -75,6 +75,7 @@ static tid_t allocate_tid (void);
 static bool smaller_priority(const struct list_elem *a,
   const struct list_elem *b, void *aux);
 static void thread_print_info(struct thread * t);
+static struct thread * get_highest_priority_thread(void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -124,7 +125,7 @@ thread_start (void)
 
 
 static void
-thread_check_ticks (struct thread *t, void *aux)
+thread_check_ticks (struct thread *t, void *aux UNUSED)
 {
   
   if (t->status == THREAD_BLOCKED && t->ticks != 0)
@@ -221,10 +222,15 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  thread_print_info(t);
+  // thread_print_info(t);
 
   /* Add to run queue. */
   thread_unblock (t);
+
+  if(t->priority > thread_current()->priority)
+  {
+    thread_yield();
+  }
 
   return tid;
 }
@@ -327,29 +333,35 @@ thread_exit (void)
   NOT_REACHED ();
 }
 
-static void
-add_to_ready_list(struct thread * t)
-{
-  ASSERT(intr_get_level() == INTR_OFF);
+// static void
+// add_to_ready_list(struct thread * t)
+// {
+//   ASSERT(intr_get_level() == INTR_OFF);
 
-  list_push_back(&ready_list, &t->elem);
+//   list_push_back(&ready_list, &t->elem);
 
-}
+// }
 
 static struct thread *
 get_highest_priority_thread()
 {
   enum intr_level old_level;
 
-  old_level = intr_disable ();
 
-  struct list_elem *l = list_max(&ready_list, smaller_priority, NULL);
-  list_remove(l);
-  struct thread *t = list_entry(l, struct thread, elem);
-  
-  intr_set_level (old_level);
+  if(!list_empty(&ready_list))
+  {
+    old_level = intr_disable ();
+    struct list_elem *l = list_max(&ready_list, smaller_priority, NULL);
+    list_remove(l);
+    struct thread *t = list_entry(l, struct thread, elem);
+    intr_set_level (old_level);
+    return t;
+  }
+  else
+  {
+    return NULL;
+  }
 
-  return t;
 }
 
 /* Yields the CPU.  The current thread is not put to sleep and
@@ -541,7 +553,7 @@ alloc_frame (struct thread *t, size_t size)
 
 static bool
 smaller_priority(const struct list_elem *a,
-  const struct list_elem *b, void *aux)
+  const struct list_elem *b, void *aux UNUSED)
 {
   struct thread *t1 = list_entry(a, struct thread, elem);
   struct thread *t2 = list_entry(b, struct thread, elem); 
