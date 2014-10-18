@@ -72,6 +72,9 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+static bool smaller_priority(const struct list_elem *a,
+  const struct list_elem *b, void *aux);
+static void thread_print_info(struct thread * t);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -218,10 +221,18 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  thread_print_info(t);
+
   /* Add to run queue. */
   thread_unblock (t);
 
   return tid;
+}
+
+static void
+thread_print_info(struct thread * t)
+{
+  printf("Thread %d, '%s' (Priority %d)\n", t->tid, t->name, t->priority);
 }
 
 /* Puts the current thread to sleep.  It will not be scheduled
@@ -314,6 +325,31 @@ thread_exit (void)
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
+}
+
+static void
+add_to_ready_list(struct thread * t)
+{
+  ASSERT(intr_get_level() == INTR_OFF);
+
+  list_push_back(&ready_list, &t->elem);
+
+}
+
+static struct thread *
+get_highest_priority_thread()
+{
+  enum intr_level old_level;
+
+  old_level = intr_disable ();
+
+  struct list_elem *l = list_max(&ready_list, smaller_priority, NULL);
+  list_remove(l);
+  struct thread *t = list_entry(l, struct thread, elem);
+  
+  intr_set_level (old_level);
+
+  return t;
 }
 
 /* Yields the CPU.  The current thread is not put to sleep and
@@ -528,9 +564,7 @@ next_thread_to_run (void)
   }
   else
   {
-    struct list_elem *l = list_max(&ready_list, smaller_priority, NULL);
-    list_remove(l);
-    struct thread *t = list_entry(l, struct thread, elem);
+    struct thread * t = get_highest_priority_thread();
 
     return t;
   }
