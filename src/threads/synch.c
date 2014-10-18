@@ -68,7 +68,8 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
+      list_insert_ordered (&sema->waiters, &thread_current ()->elem,
+        smaller_priority, NULL);
       thread_block ();
     }
   sema->value--;
@@ -114,7 +115,7 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
+    thread_unblock (list_entry (list_pop_back (&sema->waiters),
                                 struct thread, elem));
   sema->value++;
   intr_set_level (old_level);
@@ -196,6 +197,10 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  if(lock->holder != NULL) {
+    lock->holder->donated_priority = thread_current()->priority;
+  }
+
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
 }
@@ -217,6 +222,10 @@ lock_try_acquire (struct lock *lock)
   success = sema_try_down (&lock->semaphore);
   if (success)
     lock->holder = thread_current ();
+  else
+  {
+    lock->holder->donated_priority = thread_get_priority();
+  }
   return success;
 }
 
@@ -231,8 +240,11 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  lock->holder->donated_priority = 0;
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+
+  thread_yield();
 }
 
 /* Returns true if the current thread holds LOCK, false
