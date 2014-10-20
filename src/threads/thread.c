@@ -221,6 +221,8 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  list_init(t->donation_list);
+
   thread_print_info(t, "create");
 
   /* Add to run queue. */
