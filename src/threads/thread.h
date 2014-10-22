@@ -5,6 +5,8 @@
 #include <list.h>
 #include <stdint.h>
 
+#define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -23,6 +25,9 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+/* Maximum number of priority donors*/
+#define MAX_DONATERS 8
 
 /* A kernel thread or user process.
 
@@ -89,12 +94,11 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     int donated_priority;
-    int donaters[8];                    /* Up to 8 donaters of priority */
     struct list_elem allelem;           /* List element for all threads list. */
     int64_t ticks;                      /* Wakeup time */
 
-    struct list donation_list;
-    struct list_elem donationelem;
+    struct lock * waiting_on_lock;      /* The lock the thread waits for */
+    int donations[MAX_DONATERS];        /* Up to 8 donated priorities */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -139,7 +143,10 @@ typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
+int thread_get_other_priority (struct thread * t);
 void thread_set_priority (int);
+void thread_donate (struct thread * t, int priority);
+void thread_revoke_donation(struct thread * t, int priority);
 
 int thread_get_nice (void);
 void thread_set_nice (int);

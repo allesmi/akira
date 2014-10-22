@@ -16,8 +16,6 @@
 #include "userprog/process.h"
 #endif
 
-#define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
-
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -221,14 +219,12 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  list_init(&t->donation_list);
-
   thread_print_info(t, "create");
 
   /* Add to run queue. */
   thread_unblock (t);
 
-  if(t->priority > thread_current()->priority)
+  if(t->priority > thread_get_priority())
   {
     thread_yield();
   }
@@ -387,9 +383,19 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  struct thread * cur = thread_current();
-  return cur->priority > cur->donated_priority ?
-    cur->priority : cur->donated_priority;
+  return thread_get_other_priority(thread_current());
+}
+
+int thread_get_other_priority (struct thread * t)
+{
+  int i, p = t->priority;
+
+  for(i = MAX_DONATERS - 1; i >= 0; i--)
+  {
+    p = MAX(p, t->donations[i]);
+  }
+
+  return p;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -493,6 +499,35 @@ is_thread (struct thread *t)
   return t != NULL && t->magic == THREAD_MAGIC;
 }
 
+void
+thread_donate(struct thread * t, int priority)
+{
+  int i;
+  for(i = MAX_DONATERS - 1; i >= 0; i--)
+  {
+    if(t->donations[i] == 0)
+    {
+      t->donations[i] = priority;
+      return;
+    }
+  }
+  printf("Unable to donate");
+}
+
+void
+thread_revoke_donation(struct thread * t, int priority)
+{
+  int i;
+  for(i = MAX_DONATERS - 1; i >= 0; i--)
+  {
+    if(t->donations[i] == priority)
+    {
+      t->donations[i] = 0;
+      return;
+    }
+  }
+}
+
 /* Does basic initialization of T as a blocked thread named
    NAME. */
 static void
@@ -536,8 +571,10 @@ smaller_priority(const struct list_elem *a,
   struct thread *t1 = list_entry(a, struct thread, elem);
   struct thread *t2 = list_entry(b, struct thread, elem); 
 
-  return (MAX(t1->priority, t1->donated_priority) < 
-    MAX(t2->priority, t2->donated_priority));
+  int t1p = thread_get_other_priority(t1),
+    t2p = thread_get_other_priority(t2);
+
+  return t1p < t2p;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
