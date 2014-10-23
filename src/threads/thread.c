@@ -579,7 +579,7 @@ smaller_priority(const struct list_elem *a,
   int t1p = thread_get_other_priority(t1),
     t2p = thread_get_other_priority(t2);
 
-  return t1p < t2p;
+  return t1p <= t2p;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
