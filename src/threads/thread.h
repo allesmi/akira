@@ -100,6 +100,9 @@ struct thread
     struct lock * waiting_on_lock;      /* The lock the thread waits for */
     int donations[MAX_DONATERS];        /* Up to 8 donated priorities */
 
+    int niceness;
+    int recent_cpu;
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
