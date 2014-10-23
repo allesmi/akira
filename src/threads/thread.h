@@ -145,7 +145,7 @@ void thread_foreach (thread_action_func *, void *);
 int thread_get_priority (void);
 int thread_get_other_priority (struct thread * t);
 void thread_set_priority (int);
-void thread_donate (struct thread * t, int priority);
+void thread_donate (struct thread * t, int priority, int old_priority);
 void thread_revoke_donation(struct thread * t, int priority);
 
 int thread_get_nice (void);

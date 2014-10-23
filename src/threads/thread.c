@@ -500,24 +500,29 @@ is_thread (struct thread *t)
 }
 
 void
-thread_donate(struct thread * t, int priority)
+thread_donate(struct thread * t, int priority, int old_priority)
 {
   int i;
+  if(debug)
+    printf("Donating %d (was %d) to %s\n", priority, old_priority, t->name);
   for(i = MAX_DONATERS - 1; i >= 0; i--)
   {
-    if(t->donations[i] == 0)
+    if(t->donations[i] == old_priority)
     {
       t->donations[i] = priority;
       return;
     }
   }
-  printf("Unable to donate");
+  if(debug)
+    printf("Unable to donate (s/%d/%d)\n", old_priority, priority);
 }
 
 void
 thread_revoke_donation(struct thread * t, int priority)
 {
   int i;
+  if(debug)
+    printf("Revoking donation %d from %s\n", priority, t->name);
   for(i = MAX_DONATERS - 1; i >= 0; i--)
   {
     if(t->donations[i] == priority)
