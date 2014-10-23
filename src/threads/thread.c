@@ -390,7 +390,7 @@ int thread_get_other_priority (struct thread * t)
 {
   int i, p = t->priority;
 
-  for(i = MAX_DONATERS - 1; i >= 0; i--)
+  for(i = 0; i < MAX_DONATERS; i++)
   {
     p = MAX(p, t->donations[i]);
   }
@@ -503,13 +503,13 @@ void
 thread_donate(struct thread * t, int priority, int old_priority)
 {
   int i;
-  if(debug)
-    printf("Donating %d (was %d) to %s\n", priority, old_priority, t->name);
-  for(i = MAX_DONATERS - 1; i >= 0; i--)
+  for(i = 0; i < MAX_DONATERS; i++)
   {
     if(t->donations[i] == old_priority)
     {
       t->donations[i] = priority;
+      if(debug)
+        printf("Donating %d (was %d) to %s, [%d,%d,%d,...]\n", priority, old_priority, t->name, t->donations[0], t->donations[1], t->donations[2]);
       return;
     }
   }
@@ -520,15 +520,18 @@ thread_donate(struct thread * t, int priority, int old_priority)
 void
 thread_revoke_donation(struct thread * t, int priority)
 {
-  int i;
-  if(debug)
-    printf("Revoking donation %d from %s\n", priority, t->name);
-  for(i = MAX_DONATERS - 1; i >= 0; i--)
+  if (priority > 0)
   {
-    if(t->donations[i] == priority)
+    int i;
+    for(i = 0; i < MAX_DONATERS; i++)
     {
-      t->donations[i] = 0;
-      return;
+      if(t->donations[i] == priority)
+      {
+        t->donations[i] = 0;
+        if(debug)
+          printf("Revoking donation %d from %s, [%d,%d,%d,...]\n", priority, t->name, t->donations[0], t->donations[1], t->donations[2]);
+        return;
+      }
     }
   }
 }
