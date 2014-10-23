@@ -120,9 +120,9 @@ sema_up (struct semaphore *sema)
     list_sort(&sema->waiters, smaller_priority, NULL);
     thread_unblock (list_entry (list_pop_back (&sema->waiters),
                                 struct thread, elem));
+    thread_yield();
   }
   intr_set_level (old_level);
-  thread_yield();
 }
 
 static void sema_test_helper (void *sema_);
