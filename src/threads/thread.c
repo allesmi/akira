@@ -159,7 +159,10 @@ thread_tick (void)
   thread_foreach(thread_check_ticks, NULL);
 
   if(timer_ticks() % TIMER_FREQ == 0)
-    thread_foreach(calculate_recent_cpu, NULL);
+  {
+    int load_avg = thread_get_load_avg();
+    thread_foreach(calculate_recent_cpu, &load_avg);
+  }
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -432,17 +435,19 @@ thread_get_load_avg (void)
 {
   static int load_avg = 0;
 
-  load_avg = (59/60) * load_avg + (1/60) * list_size(&ready_list);
+  load_avg = (59/60) * load_avg + (1/60) * (list_size(&ready_list) + 1);
 
   return load_avg;
 }
 
 static void
-calculate_recent_cpu(struct thread * t, void * aux UNUSED)
+calculate_recent_cpu(struct thread * t, void * load_avg_)
 {
-  int load_avg = thread_get_load_avg();
+  int load_avg = *((int*)load_avg_);
   int nice = t->niceness;
   t->recent_cpu = (2 * load_avg)/(2*load_avg + 1) * t->recent_cpu + nice;
+  // TODO: This function writes on threads without synchronization primitive.
+  //   Is this safe under all conditions?
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
