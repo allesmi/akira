@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/fixed-point.h"
 #include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -158,7 +159,7 @@ thread_tick (void)
 
   thread_foreach(thread_check_ticks, NULL);
 
-  if(timer_ticks() % TIMER_FREQ == 0)
+  if(thread_mlfqs && timer_ticks() % TIMER_FREQ == 0)
   {
     int load_avg = thread_get_load_avg();
     thread_foreach(calculate_recent_cpu, &load_avg);
@@ -233,7 +234,7 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
-  if(t->priority > thread_get_priority())
+  if(!thread_mlfqs && t->priority > thread_get_priority())
   {
     thread_yield();
   }
@@ -384,8 +385,11 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
-  thread_yield();
+  if(!thread_mlfqs)
+  {
+    thread_current ()->priority = new_priority;
+    thread_yield();
+  }
 }
 
 /* Returns the current thread's priority. */
@@ -445,6 +449,8 @@ calculate_recent_cpu(struct thread * t, void * load_avg_)
 {
   int load_avg = *((int*)load_avg_);
   int nice = t->niceness;
+  // TODO: use our functions defined in fixed-point.h for the following
+  //  calculation
   t->recent_cpu = (2 * load_avg)/(2*load_avg + 1) * t->recent_cpu + nice;
   // TODO: This function writes on threads without synchronization primitive.
   //   Is this safe under all conditions?
@@ -454,7 +460,7 @@ calculate_recent_cpu(struct thread * t, void * load_avg_)
 int
 thread_get_recent_cpu (void) 
 {
-  return thread_current()->recent_cpu;
+  return 100 * to_int_nearest(thread_current()->recent_cpu);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -631,7 +637,15 @@ next_thread_to_run (void)
   else
   {
     struct thread * t;
-    t = list_entry(list_pop_back(&ready_list), struct thread, elem);
+
+    if(thread_mlfqs)
+    {
+
+    }
+    else
+    {
+      t = list_entry(list_pop_back(&ready_list), struct thread, elem);
+    }
 
     return t;
   }

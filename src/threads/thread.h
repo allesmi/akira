@@ -5,6 +5,8 @@
 #include <list.h>
 #include <stdint.h>
 
+#include "threads/fixed-point.h"
+
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 
 /* States in a thread's life cycle. */
@@ -101,7 +103,7 @@ struct thread
     int donations[MAX_DONATERS];        /* Up to 8 donated priorities */
 
     int niceness;
-    int recent_cpu;
+    fixed_point recent_cpu;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
