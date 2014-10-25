@@ -8,6 +8,7 @@
 #include "threads/fixed-point.h"
 
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 /* States in a thread's life cycle. */
 enum thread_status
