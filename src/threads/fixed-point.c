@@ -54,3 +54,14 @@ fixed_point div_int(fixed_point x, int n)
 {
 	return 0;
 }
+
+fixed_point max(fixed_point x, fixed_point y)
+{
+	return 0;
+}
+
+
+fixed_point min(fixed_point x, fixed_point y)
+{
+	return 0;
+}
