@@ -92,10 +92,9 @@ timer_sleep (int64_t ticks)
 
   ASSERT (intr_get_level () == INTR_ON);
 
+  intr_disable();
   struct thread *t = thread_current();
   t->ticks = ticks + timer_ticks();
-
-  intr_disable();
   thread_block();
   intr_enable();
 }

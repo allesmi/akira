@@ -167,6 +167,8 @@ thread_tick (void)
 
   if(thread_mlfqs)
   {
+    enum intr_level old_level = intr_disable ();
+
     // Each time a timer interrupt occurs, recent_cpu is incremented by 1 for the 
     // running thread only, unless the idle thread is running.
     if(thread_current() != idle_thread)
@@ -187,23 +189,34 @@ thread_tick (void)
     {
       fixed_point a = div(to_fixed_point(59), to_fixed_point(60));
       fixed_point b = div(to_fixed_point(1), to_fixed_point(60));
-      load_avg = add(multi(a, load_avg), multi_int(b, list_size(&ready_list) + 1));
+      if(thread_current() != idle_thread)
+        load_avg = add(multi(a, load_avg), multi_int(b, list_size(&ready_list) + 1));
+      else
+        load_avg = multi(a, load_avg);
+      if(debug)
+        printf("load_avg = %d\n", thread_get_load_avg());
+
     }
 
     // Calculate priority every four ticks
     if(timer_ticks() % 4 == 0)
     {
       thread_foreach(calculate_priority, NULL);
-      list_sort(&ready_list, smaller_priority, NULL);
+      // calculate_priority(thread_current(), NULL);
+      
       if(thread_current() != list_entry(list_end(&ready_list), struct thread, elem))
       {
         intr_yield_on_return();
       }
     }
+
+    intr_set_level (old_level);
   }
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
+  {
     intr_yield_on_return ();
+  }
 }
 
 /* Prints thread statistics. */
@@ -460,14 +473,18 @@ thread_get_priority (void)
 static void
 calculate_priority(struct thread * t, void * aux UNUSED)
 {
-  fixed_point val = to_fixed_point(PRI_MAX) - 
-    div_int(to_fixed_point(t->recent_cpu), 4) - 
-    multi_int(to_fixed_point(t->niceness), 2);
+  if (t == idle_thread) return;
+
+  fixed_point val = subtract(to_fixed_point(PRI_MAX), 
+      add(div_int(t->recent_cpu, 4),  
+      multi_int(to_fixed_point(t->niceness), 2)));
 
   val = min(to_fixed_point(PRI_MAX), val);
   val = max(to_fixed_point(PRI_MIN), val);
 
   t->priority = to_int_nearest(val);
+  if(debug)
+    printf("Priority for %s is %d\n", t->name, t->priority);
 }
 
 int thread_get_other_priority (struct thread * t)
@@ -509,13 +526,14 @@ thread_get_load_avg (void)
 static fixed_point
 calculate_recent_cpu(fixed_point recent_cpu, int niceness)
 {
-  return add_int(multi(div(multi_int(load_avg, 2),multi_int(add_int(load_avg, 1),2)), recent_cpu), niceness);
+  return add_int(multi(div(multi_int(load_avg, 2),add_int(multi_int(load_avg, 2),1)), recent_cpu), niceness);
 }
 
 static void
 update_recent_cpu(struct thread * t, void * aux UNUSED)
 {
   t->recent_cpu = calculate_recent_cpu(t->recent_cpu, t->niceness);
+  // printf("Recent cpu for %s is %d\n", t->name, to_int_nearest(t->recent_cpu));
   // TODO: This function writes on threads without synchronization primitive.
   //   Is this safe under all conditions?
 }
@@ -600,6 +618,7 @@ is_thread (struct thread *t)
 void
 thread_donate(struct thread * t, int priority, int old_priority)
 {
+  t->lock_count++;
   int i;
   for(i = 0; i < MAX_DONATERS; i++)
   {
@@ -618,17 +637,18 @@ thread_donate(struct thread * t, int priority, int old_priority)
 void
 thread_revoke_donation(struct thread * t, int priority)
 {
+  t->lock_count--;
   if (priority > 0)
   {
     int i;
     for(i = 0; i < MAX_DONATERS; i++)
     {
-      if(t->donations[i] == priority)
+      if(t->donations[i] == priority)// || t->lock_count < 0)
       {
         t->donations[i] = 0;
         if(debug)
           printf("Revoking donation %d from %s, [%d,%d,%d,...]\n", priority, t->name, t->donations[0], t->donations[1], t->donations[2]);
-        return;
+        // return;
       }
     }
   }
@@ -652,6 +672,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   t->recent_cpu = 0;
+  t->lock_count = 0;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -710,7 +731,6 @@ next_thread_to_run (void)
   {
     struct thread * t;
     t = list_entry(list_pop_back(&ready_list), struct thread, elem);
-
     return t;
   }
     

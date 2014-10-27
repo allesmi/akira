@@ -96,12 +96,12 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    int donated_priority;
     struct list_elem allelem;           /* List element for all threads list. */
     int64_t ticks;                      /* Wakeup time */
 
     struct lock * waiting_on_lock;      /* The lock the thread waits for */
     int donations[MAX_DONATERS];        /* Up to 8 donated priorities */
+    int lock_count;
 
     int niceness;
     fixed_point recent_cpu;
