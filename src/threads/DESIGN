@@ -65,7 +65,10 @@ We disable interrupts while setting the wakeup time and blocking the thread.
 >> A6: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
 
-The code change was kept to a minimum.
+Another approach was to store the sleep time directly in the thread data. This
+implies that the time has to be decreased on every tick. We wanted to avoid 
+that and keep the thread tick simple by just comparing the wakeup time with 
+the current time. The code change was kept to a minimum. 
 
 			 PRIORITY SCHEDULING
 			 ===================
@@ -86,9 +89,19 @@ struct thread
 	int donations[MAX_DONATERS];        /* Up to 8 donated priorities */
 }
 
+struct lock
+{
+	// ...
+	int priority; 						/* Donated priority for this lock */
+}
+
 >> B2: Explain the data structure used to track priority donation.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
 >> .png file.)
+
+We use an integer array to track donations. By saving the priority for every 
+lock it is possible to substitute donated priorities in the array by their 
+new values.
 
 ---- ALGORITHMS ----
 
@@ -96,15 +109,73 @@ struct thread
 >> a lock, semaphore, or condition variable wakes up first?
 
 After the up operation of the semaphore we sort the list of waiters and 
-unblock the thread with the highest priority.
+unblock the thread with the highest priority. We cannot rely on the insertion
+order as priorities may have changed in the mean time.
 
 >> B4: Describe the sequence of events when a call to lock_acquire()
 >> causes a priority donation.  How is nested donation handled?
 
-By saving the lock a blocked thread is waiting for, it is possible to traverse the donation chain.
+By saving the lock a blocked thread is waiting for, it is possible to 
+traverse the donation chain.
+
+struct lock * l = lock; // Initially, we observe the lock we wanted to 
+                        // acquire but is held by another thread.
+int i = 8; // this should present an upper bound for the traversal, just in 
+           // case we created a cycle.
+while(l != NULL && (i--) > 0) // While l exists
+{
+  if(l->holder == NULL) break;
+
+  int old_priority = l->priority;
+  int other_priority = thread_get_other_priority(l->holder);
+  int this_priority = thread_get_priority();
+
+  if(other_priority > this_priority) // if the holder has a higher priority
+    break;                           /// then there is no need to donate.
+
+  // donate priority by substituting the former priority of this lock
+  // by the donor's priority.
+  thread_donate(l->holder, this_priority, old_priority);
+
+  // set the locks priority to the newly donated priority       
+  l->priority = this_priority;
+
+  // move on to the lock the thread we just donated to is waiting
+  l = l->holder->waiting_on_lock;
+}
+
+Then the semaphore is downed by the current thread.
 
 >> B5: Describe the sequence of events when lock_release() is called
 >> on a lock that a higher-priority thread is waiting for.
+
+int max = 0;
+
+if(!list_empty(&lock->semaphore.waiters)) // if there are other waiters for 
+                                          // this lock
+{
+	// find the new maximum of priorities of waiting threads
+	struct list_elem * e;
+	for (e = list_begin (&lock->semaphore.waiters);
+	  e != list_end (&lock->semaphore.waiters);
+	  e = list_next (e))
+	{
+	  struct thread * t = list_entry(e, struct thread, elem);
+	  max = MAX(thread_get_other_priority(t), max);
+	}
+}
+// and set the lock's new priority
+lock->priority = max;
+
+In the semaphore down operation we wake up the highest priority waiter.
+
+if (!list_empty (&sema->waiters))
+{
+	list_sort(&sema->waiters, smaller_priority, NULL);
+	thread_unblock (list_entry (list_pop_back (&sema->waiters),
+	                            struct thread, elem));
+	thread_yield();
+}
 
 ---- SYNCHRONIZATION ----
 
@@ -112,12 +183,19 @@ By saving the lock a blocked thread is waiting for, it is possible to traverse t
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
 
-thread_set_priority() gets the currently running thread. Then that thread's priority is changed. A race can occur when the thread is scheduled
+thread_set_priority() writes to the priority field of the current thread struct.
+A concurrent thread could write as well, resulting in a race condition.
+
+We avoid this problem by only allowing threads to change their own priority.
+In our implementation, thread_set_priority() changes the initial priority.
+No interrupt handler ever changes a thread's initial priority.
 
 ---- RATIONALE ----
 
 >> B7: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+It was possible to keep the code for acquiring and releasing locks very simple.
 
 			  ADVANCED SCHEDULER
 			  ==================
@@ -127,6 +205,17 @@ thread_set_priority() gets the currently running thread. Then that thread's prio
 >> C1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+typedef fixed_point int; /* Our implementation of fixed point numbers */
+
+fixed_point load_avg; /* load average, represented as a fixed-point number */
+
+struct thread
+{
+	// ...
+	int niceness;				/* As described in the requirements */
+    fixed_point recent_cpu;
+}
 
 ---- ALGORITHMS ----
 
