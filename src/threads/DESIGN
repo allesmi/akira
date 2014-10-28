@@ -40,7 +40,7 @@ struct thread
 >> A2: Briefly describe what happens in a call to timer_sleep(),
 >> including the effects of the timer interrupt handler.
 
-We set the member 'ticks' as current time + sleep time.
+We set the member 'ticks' as current time + sleep time and block the thread.
 
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
@@ -48,7 +48,8 @@ We set the member 'ticks' as current time + sleep time.
 We iterate over all threads to check if their wakeup time has come. This did 
 not appear to take too much time. Therefore, we did not optimize this further.
 One possible optimization would be defining an order function to sort the 
-blocked threads by their wakeup time.
+blocked threads by their wakeup time. But this means that we have to maintain
+another list.
 
 ---- SYNCHRONIZATION ----
 
@@ -102,6 +103,8 @@ struct lock
 We use an integer array to track donations. By saving the priority for every 
 lock it is possible to substitute donated priorities in the array by their 
 new values.
+
+[B2.png]
 
 ---- ALGORITHMS ----
 
@@ -229,23 +232,31 @@ struct thread
 timer  recent_cpu    priority   thread
 ticks   A   B   C   A   B   C   to run
 -----  --  --  --  --  --  --   ------
- 0     0    0   0  63  61  59        A 
- 4
- 8
-12
-16
-20
-24
-28
-32
-36
+ 0      0   0   0  63  61  59        A 
+ 4      4   0   0  62  61  59        A
+ 8      8   0   0  61  61  59        B
+12      8   4   0  61  60  59        A
+16     12   4   0  60  60  59        B
+20     12   8   0  60  59  59        A
+24     16   8   0  59  59  59        C
+28     16   8   4  59  59  58        B
+32     16  12   4  59  58  58        A
+36     20  12   4  58  58  58        C
 
 >> C3: Did any ambiguities in the scheduler specification make values
 >> in the table uncertain?  If so, what rule did you use to resolve
 >> them?  Does this match the behavior of your scheduler?
 
+On equal priority, we schedule these threads round robin.
+
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
+
+Inside the tick function we only calculate the necessary values. At first we 
+also sorted the thread according to their priority evertime it was recalculated.
+This operation was too slow; it took longer than a tick. We reconsidered our 
+approach and found out, that the order of the ready list is maintained by 
+inserting yielding threads ordered in to the list.
 
 ---- RATIONALE ----
 
@@ -254,12 +265,23 @@ ticks   A   B   C   A   B   C   to run
 >> time to work on this part of the project, how might you choose to
 >> refine or improve your design?
 
+The calculations in the tick function is exactly like described in the 
+requirement. A disadvantage is the order of the ready queue. As we cannot 
+guarantee a fully sorted list whenever the scheduler picks the next thread to
+ run we have to approximate an order by yielding more often (after every 
+ recalculation of the priority).
+
 >> C6: The assignment explains arithmetic for fixed-point math in
 >> detail, but it leaves it open to you to implement it.  Why did you
 >> decide to implement it the way you did?  If you created an
 >> abstraction layer for fixed-point math, that is, an abstract data
 >> type and/or a set of functions or macros to manipulate fixed-point
 >> numbers, why did you do so?  If not, why not?
+
+We implemented fixed point math via functions for the basic arithmetic 
+operations. The implementation was straightforward. As this part was only 
+necessary for the advanced scheduler we did not put too much engineering effort
+into it. Just fit for purpose.
 
 			   SURVEY QUESTIONS
 			   ================
