@@ -184,11 +184,13 @@ if (!list_empty (&sema->waiters))
 >> this race?
 
 thread_set_priority() writes to the priority field of the current thread struct.
-A concurrent thread could write as well, resulting in a race condition.
+An interrupt handler could in the mean time re-calculate the priority based on 
+donations, resulting in a race condition. A lock is not possible because the
+interrupt handler cannot sleep.
 
-We avoid this problem by only allowing threads to change their own priority.
-In our implementation, thread_set_priority() changes the initial priority.
-No interrupt handler ever changes a thread's initial priority.
+We avoid this problem by removing the need for periodic recalculation of 
+priorities. The only write access to thread->priority is done in 
+thread_set_priority.
 
 ---- RATIONALE ----
 
@@ -227,7 +229,7 @@ struct thread
 timer  recent_cpu    priority   thread
 ticks   A   B   C   A   B   C   to run
 -----  --  --  --  --  --  --   ------
- 0
+ 0     0    0   0  63  61  59        A 
  4
  8
 12
