@@ -618,7 +618,6 @@ is_thread (struct thread *t)
 void
 thread_donate(struct thread * t, int priority, int old_priority)
 {
-  t->lock_count++;
   int i;
   for(i = 0; i < MAX_DONATERS; i++)
   {
@@ -637,7 +636,6 @@ thread_donate(struct thread * t, int priority, int old_priority)
 void
 thread_revoke_donation(struct thread * t, int priority)
 {
-  t->lock_count--;
   if (priority > 0)
   {
     int i;
@@ -672,7 +670,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   t->recent_cpu = 0;
-  t->lock_count = 0;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

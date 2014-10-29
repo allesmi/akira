@@ -101,7 +101,6 @@ struct thread
 
     struct lock * waiting_on_lock;      /* The lock the thread waits for */
     int donations[MAX_DONATERS];        /* Up to 8 donated priorities */
-    int lock_count;
 
     int niceness;
     fixed_point recent_cpu;
