@@ -278,7 +278,7 @@ lock_release (struct lock *lock)
     {
       struct thread * t = list_entry(e, struct thread, elem);
       // thread_revoke_donation(t, lock->priority);
-      max = MAX(thread_get_other_priority(t), max);
+      max = MAX(t->priority, max);
     }
   }
   lock->priority = max;
