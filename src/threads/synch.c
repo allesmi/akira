@@ -120,7 +120,10 @@ sema_up (struct semaphore *sema)
     list_sort(&sema->waiters, smaller_priority, NULL);
     thread_unblock (list_entry (list_pop_back (&sema->waiters),
                                 struct thread, elem));
-    thread_yield();
+    if(intr_context())
+      intr_yield_on_return();
+    else
+      thread_yield();
   }
   intr_set_level (old_level);
 }
