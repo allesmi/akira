@@ -5,6 +5,11 @@
 #include <list.h>
 #include <stdint.h>
 
+#include "threads/fixed-point.h"
+
+#define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -23,6 +28,9 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+/* Maximum number of priority donors*/
+#define MAX_DONATERS 8
 
 /* A kernel thread or user process.
 
@@ -89,6 +97,13 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+    int64_t ticks;                      /* Wakeup time */
+
+    struct lock * waiting_on_lock;      /* The lock the thread waits for */
+    int donations[MAX_DONATERS];        /* Up to 8 donated priorities */
+
+    int niceness;
+    fixed_point recent_cpu;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -106,12 +121,14 @@ struct thread
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
+extern bool debug;
 
 void thread_init (void);
 void thread_start (void);
 
 void thread_tick (void);
 void thread_print_stats (void);
+void thread_print_info(struct thread * t, void* aux);
 
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
@@ -131,11 +148,18 @@ typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
+int thread_get_other_priority (struct thread * t);
 void thread_set_priority (int);
+void thread_donate (struct thread * t, int priority, int old_priority);
+void thread_revoke_donation(struct thread * t, int priority);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+bool smaller_priority(const struct list_elem *a,
+  const struct list_elem *b, void *aux);
+
 
 #endif /* threads/thread.h */
