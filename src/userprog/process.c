@@ -15,6 +15,7 @@
 #include "threads/init.h"
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
@@ -214,6 +215,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
+  char *token, *save_ptr;
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -222,7 +224,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  token = strtok_r (file_name, " ", &save_ptr);
+  file = filesys_open (token);
+  // file = filesys_open (file_name);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -304,6 +308,56 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
+
+  char ** argv = (char **) malloc(5 * sizeof(char *));
+  int argv_size = 5;
+  int argc = 0;
+
+  // Push strings onto stack
+  for (; token != NULL; token = strtok_r (NULL, " ", &save_ptr))
+  {
+    *esp -= strlen(token) + 1;
+    memcpy(*esp, token, strlen(token) + 1);
+    argv[argc] = *esp;
+    argc++;
+    if(argc >= argv_size)
+    {
+      argv_size *= 2;
+      argv = realloc(argv, argv_size * sizeof(char *));
+    }
+
+    printf ("Argument %d '%s' (%d) at %x\n", argc, token, strlen(token)+1, (unsigned int)*esp);
+  }
+  argv[argc] = 0;
+
+  // Word alignment
+  int align = (int)*esp % 4;
+  if(align)
+  {
+    *esp -= align;
+  }
+
+  // Push pointer to strings onto stack (aka *argv)
+  for(i = argc; i>=0; i--)
+  {
+    *esp -= sizeof(char *);
+    memcpy(*esp, &argv[i], sizeof(char *));
+  }
+
+  // Push pointer to argv onto the stack (aka **argv)
+  void * p = *esp;
+  *esp -= sizeof(char **);
+  memcpy(*esp, &p, sizeof(char **));
+
+  // Push argc onto stack
+  *esp -= sizeof(int);
+  memcpy(*esp, &argc, sizeof(int));
+
+  // Push fake return address onto stack
+  *esp -= sizeof(void *);
+  memcpy(*esp, &argv[argc], sizeof(void*));
+
+  free(argv);
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
