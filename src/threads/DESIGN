@@ -164,7 +164,7 @@ if(!list_empty(&lock->semaphore.waiters)) // if there are other waiters for
 	  e = list_next (e))
 	{
 	  struct thread * t = list_entry(e, struct thread, elem);
-	  max = MAX(thread_get_other_priority(t), max);
+	  max = MAX(t->priority, max);
 	}
 }
 // and set the lock's new priority
