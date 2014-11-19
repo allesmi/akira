@@ -29,7 +29,8 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy;
+  char *fn_copy, *filename_copy;
+  char *token, *save_ptr;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -37,12 +38,25 @@ process_execute (const char *file_name)
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
+
+  filename_copy = palloc_get_page (0);
+  if (filename_copy == NULL)
+    return TID_ERROR;
+
+
   strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (filename_copy, file_name, PGSIZE);
+
+  token = strtok_r (filename_copy, " ", &save_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT + 1, start_process, fn_copy);
+  tid = thread_create (token, PRI_DEFAULT + 1, start_process, fn_copy);
+
   if (tid == TID_ERROR)
+  {
+    palloc_free_page (filename_copy);
     palloc_free_page (fn_copy); 
+  }
   return tid;
 }
 
@@ -326,7 +340,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       argv = realloc(argv, argv_size * sizeof(char *));
     }
 
-    printf ("Argument %d '%s' (%d) at %x\n", argc, token, strlen(token)+1, (unsigned int)*esp);
+    //printf ("Argument %d '%s' (%d) at %x\n", argc, token, strlen(token)+1, (unsigned int)*esp);
   }
   argv[argc] = 0;
 
@@ -369,7 +383,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file_close (file);
   return success;
 }
-
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
