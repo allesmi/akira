@@ -1,5 +1,6 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
+#include <string.h>
 #include <syscall-nr.h>
 #include <user/syscall.h>
 #include "devices/shutdown.h"
@@ -100,6 +101,15 @@ syscall_handler (struct intr_frame *f UNUSED)
 		}
 		case SYS_WRITE:
 		{
+			int fd = *((int *)f->esp + 1);
+			void * buf = *((void **)f->esp + 2);
+			unsigned size = *((unsigned *)f->esp + 3);
+			// printf("%d: %x, %x, %d\n", SYS_WRITE, fd, &buf, size);
+			if(fd == STDOUT_FILENO)
+			{
+				putbuf(buf, size);
+			}
+
 			break;
 		}
 		case SYS_SEEK:
