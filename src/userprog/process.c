@@ -352,7 +352,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   argv[argc] = 0;
 
   // Word alignment
-  int align = (int)*esp % 4;
+  int align = (unsigned int)*esp % 4;
   if(align)
   {
     *esp -= align;
@@ -515,7 +515,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE - 12;
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }
