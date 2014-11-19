@@ -8,6 +8,8 @@
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "filesys/filesys.h"
+#include "threads/malloc.h"
+#include "threads/synch.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -73,6 +75,19 @@ syscall_handler (struct intr_frame *f UNUSED)
 		}
 		case SYS_OPEN:
 		{
+			char * file = *(char **)(f->esp + 1);
+			struct thread_file * tf = (struct thread_file *)malloc(sizeof (struct thread_file));
+			tf->fdfile = filesys_open(file);
+			tf->pos = 0;
+			struct thread * t = thread_current();
+			lock_acquire(t->last_fd_lock);
+			t->last_fd++;
+			tf->fd = t->last_fd;
+			lock_release(t->last_fd_lock);
+
+			// TODO: Do we have to sync here?
+			list_push_back(&t->files, &tf->elem);
+
 			break;
 		}
 		case SYS_FILESIZE:
