@@ -7,6 +7,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -35,7 +36,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 		}
 		case SYS_EXIT:
 		{
-			int status = * (int *)(f->esp + 4);
+			int status = * (int *)(f->esp + 1);
 			f->eax = status;
 			exit(status);
 			break;
@@ -46,14 +47,29 @@ syscall_handler (struct intr_frame *f UNUSED)
 		}
 		case SYS_WAIT:
 		{
+			pid_t pid = *(int *)(f->esp + 1);
+
+			// TODO
+			
 			break;
 		}
 		case SYS_CREATE:
 		{
+			char * file = *(char **)(f->esp + 1);
+			unsigned initial_size = *(unsigned *)(f->esp + 2);
+
+			bool ret = filesys_create(file, initial_size);
+			f->eax = ret;
+
 			break;
 		}
 		case SYS_REMOVE:
 		{
+			char * file = *(char **)(f->esp + 1);
+
+			bool ret = filesys_remove(file);
+			f->eax = ret;
+
 			break;
 		}
 		case SYS_OPEN:
