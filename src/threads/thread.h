@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "threads/fixed-point.h"
+#include "filesys/file.h"
 
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
@@ -17,6 +18,14 @@ enum thread_status
     THREAD_READY,       /* Not running but ready to run. */
     THREAD_BLOCKED,     /* Waiting for an event to trigger. */
     THREAD_DYING        /* About to be destroyed. */
+  };
+
+struct thread_file 
+  {
+    struct list_elem elem;
+    struct file * fdfile;
+    int fd;
+    int pos;
   };
 
 /* Thread identifier type.
@@ -105,6 +114,8 @@ struct thread
     int niceness;
     fixed_point recent_cpu;
 
+    struct list files;
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
@@ -116,6 +127,7 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
