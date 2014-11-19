@@ -231,7 +231,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-  char *token, *save_ptr;
+  char *filename_copy = NULL, *token, *save_ptr;
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -239,13 +239,18 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  filename_copy = palloc_get_page (0);
+  if (filename_copy == NULL)
+    goto done;
+  strlcpy (filename_copy, file_name, PGSIZE);
+
   /* Open executable file. */
-  token = strtok_r (file_name, " ", &save_ptr);
+  token = strtok_r (filename_copy, " ", &save_ptr);
   file = filesys_open (token);
   // file = filesys_open (file_name);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", token);
       goto done; 
     }
 
@@ -258,7 +263,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
     {
-      printf ("load: %s: error loading executable\n", file_name);
+      printf ("load: %s: error loading executable\n", token);
       goto done; 
     }
 
@@ -382,6 +387,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
+  if(filename_copy != NULL)
+  {
+    palloc_free_page(filename_copy);
+  }
   file_close (file);
   return success;
 }
