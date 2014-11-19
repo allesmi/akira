@@ -20,8 +20,7 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-
-	if(f->esp == NULL)
+	if(f->esp == NULL )
 	{
 		f->eax = -1;
 		exit(-1);
