@@ -26,7 +26,7 @@ syscall_init (void)
 static bool
 is_valid_user_pointer (const void * charlie)
 {
-	return is_user_vaddr(charlie) && pagedir_get_page(thread_current()->pagedir, charlie) != NULL;
+	return is_user_vaddr (charlie) && pagedir_get_page (thread_current()->pagedir, charlie) != NULL;
 }
 
 static bool
@@ -34,9 +34,9 @@ validate_arguments (int arg_count, struct  intr_frame *f)
 {
 	int i;
 
-	for(i = 1; i <= arg_count; i++)
+	for (i = 1; i <= arg_count; i++)
 	{
-		if (!is_valid_user_pointer(f->esp + i))
+		if (!is_valid_user_pointer (f->esp + i))
 	    	return false;
 	}
 
@@ -53,39 +53,42 @@ userprog_fail (struct intr_frame *f)
 static void
 syscall_handler (struct intr_frame *f) 
 {
-	if(f->esp == NULL || !is_valid_user_pointer((const void *)f->esp))
+	if (f->esp == NULL || !is_valid_user_pointer ((const void *) f->esp))
 	{
-		userprog_fail(f);
+		userprog_fail (f);
 	}
 
-	switch(* (int *)(f->esp))
+	switch (* (int *)(f->esp))
 	{
 		case SYS_HALT:
 		{
-			sys_halt();
+			sys_halt ();
 			break;
 		}
 		case SYS_EXIT:
 		{
-			if(!is_valid_user_pointer(f->esp + 4))
-				userprog_fail(f);
-			int status = *((int *)f->esp + 1);
+			if (!is_valid_user_pointer (f->esp + 4))
+				userprog_fail (f);
+			int status = *((int *) f->esp + 1);
 			f->eax = status;
-			sys_exit(status);
+			sys_exit (status);
 			break;
 		}
 		case SYS_EXEC:
 		{
-			char * file = *((char **)f->esp + 1);
-			pid_t pid = process_execute(file);
+			char * file = *((char **) f->esp + 1);
+			pid_t pid = process_execute (file);
 			f->eax = pid;
 			break;
 		}
 		case SYS_WAIT:
 		{
-			pid_t pid = *(int *)(f->esp + 1);
+			if (!validate_arguments (1, f))
+				userprog_fail (f);
 
-			int status = process_wait(pid);
+			pid_t pid = *((int *) f->esp + 1);
+
+			int status = process_wait (pid);
 			f->eax = status;
 			
 			break;
@@ -97,28 +100,28 @@ syscall_handler (struct intr_frame *f)
 				userprog_fail(f);
 			unsigned initial_size = *((unsigned *)f->esp + 2);
 			*/
-			if(!validate_arguments(2, f))
-				userprog_fail(f);
+			if (!validate_arguments (2, f))
+				userprog_fail (f);
 
-			char * file = *((char **)f->esp + 1);
-			if(file == NULL || !is_valid_user_pointer((const void *) file))
-				userprog_fail(f);
+			char * file = *((char **) f->esp + 1);
+			if (file == NULL || !is_valid_user_pointer ((const void *) file))
+				userprog_fail (f);
 
-			unsigned initial_size = *((unsigned *)f->esp + 2);
-			bool ret = filesys_create(file, initial_size);
+			unsigned initial_size = *((unsigned *) f->esp + 2);
+			bool ret = filesys_create (file, initial_size);
 			f->eax = ret;
 
 			break;
 		}
 		case SYS_REMOVE:
 		{
-			if(!validate_arguments(1, f))
-				userprog_fail(f);
+			if (!validate_arguments (1, f))
+				userprog_fail (f);
 
 			char * file = *((char **)f->esp + 1);
 
-			if(file == NULL || !is_valid_user_pointer(file))
-				userprog_fail(f);
+			if (file == NULL || !is_valid_user_pointer (file))
+				userprog_fail (f);
 
 			bool ret = filesys_remove(file);
 			f->eax = ret;
@@ -127,13 +130,13 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_OPEN:
 		{
-			if(!validate_arguments(1, f))
-				userprog_fail(f);
+			if (!validate_arguments (1, f))
+				userprog_fail (f);
 
-			char * file_name = *((char **)f->esp + 1);
+			char * file_name = *((char **) f->esp + 1);
 
-			if(!is_valid_user_pointer(file_name))
-				userprog_fail(f);
+			if (!is_valid_user_pointer (file_name))
+				userprog_fail (f);
 
 
 			struct thread_file * tf = (struct thread_file *)malloc(sizeof (struct thread_file));
@@ -202,14 +205,14 @@ syscall_handler (struct intr_frame *f)
 static void
 sys_halt (void)
 {
-	shutdown_power_off();
+	shutdown_power_off ();
 }
 
 static void
 sys_exit (int status)
 {
-	printf("%s: exit(%d)\n", thread_current()->name, status);
-	thread_exit();
+	printf ("%s: exit(%d)\n", thread_current()->name, status);
+	thread_exit ();
 }
 
 /*
