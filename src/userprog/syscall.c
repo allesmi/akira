@@ -20,13 +20,25 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-static void
-syscall_handler (struct intr_frame *f UNUSED) 
+static bool
+is_valid_user_pointer(const void * charlie)
 {
-	if(f->esp == NULL )
+	return is_user_vaddr(charlie) && pagedir_get_page(thread_current()->pagedir, charlie) != NULL;
+}
+
+static void
+userprog_fail(struct intr_frame *f)
+{
+	f->eax = -1;
+	exit(-1);
+}
+
+static void
+syscall_handler (struct intr_frame *f) 
+{
+	if(f->esp == NULL || !is_valid_user_pointer((const void *)f->esp))
 	{
-		f->eax = -1;
-		exit(-1);
+		userprog_fail(f);
 	}
 
 	switch(* (int *)(f->esp))
@@ -38,7 +50,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 		}
 		case SYS_EXIT:
 		{
-			int status = * (int *)(f->esp + 1);
+			if(!is_valid_user_pointer(f->esp + 4))
+				userprog_fail(f);
+			int status = *((int *)f->esp + 1);
 			f->eax = status;
 			exit(status);
 			break;
@@ -57,9 +71,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 		}
 		case SYS_CREATE:
 		{
-			char * file = *(char **)(f->esp + 1);
-			unsigned initial_size = *(unsigned *)(f->esp + 2);
-
+			char * file = *((char **)f->esp + 1);
+			unsigned initial_size = *((unsigned *)f->esp + 2);
 			bool ret = filesys_create(file, initial_size);
 			f->eax = ret;
 
@@ -67,7 +80,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 		}
 		case SYS_REMOVE:
 		{
-			char * file = *(char **)(f->esp + 1);
+			char * file = *((char **)f->esp + 1);
 
 			bool ret = filesys_remove(file);
 			f->eax = ret;
@@ -76,7 +89,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 		}
 		case SYS_OPEN:
 		{
-			char * file = *(char **)(f->esp + 1);
+			char * file = *((char **)f->esp + 1);
 			struct thread_file * tf = (struct thread_file *)malloc(sizeof (struct thread_file));
 			tf->fdfile = filesys_open(file);
 			tf->pos = 0;
@@ -88,6 +101,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 			// TODO: Do we have to sync here?
 			list_push_back(&t->files, &tf->elem);
+
+			f->eax = tf->fd;
 
 			break;
 		}
@@ -125,7 +140,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 			break;
 		}
 	}
-
 }
 
 
