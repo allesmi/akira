@@ -14,6 +14,8 @@
 #include "threads/synch.h"
 
 static void syscall_handler (struct intr_frame *);
+static void sys_halt (void);
+static void sys_exit (int status);
 
 void
 syscall_init (void) 
@@ -31,7 +33,7 @@ static void
 userprog_fail(struct intr_frame *f)
 {
 	f->eax = -1;
-	exit(-1);
+	sys_exit(-1);
 }
 
 static void
@@ -46,7 +48,7 @@ syscall_handler (struct intr_frame *f)
 	{
 		case SYS_HALT:
 		{
-			halt();
+			sys_halt();
 			break;
 		}
 		case SYS_EXIT:
@@ -55,7 +57,7 @@ syscall_handler (struct intr_frame *f)
 				userprog_fail(f);
 			int status = *((int *)f->esp + 1);
 			f->eax = status;
-			exit(status);
+			sys_exit(status);
 			break;
 		}
 		case SYS_EXEC:
@@ -148,13 +150,13 @@ syscall_handler (struct intr_frame *f)
 }
 
 static void
-halt (void)
+sys_halt (void)
 {
 	shutdown_power_off();
 }
 
 static void
-exit (int status)
+sys_exit (int status)
 {
 	printf("%s: exit(%d)\n", thread_current()->name, status);
 	thread_exit();
