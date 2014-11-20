@@ -112,7 +112,13 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_REMOVE:
 		{
+			if(!validate_arguments(1, f))
+				userprog_fail(f);
+
 			char * file = *((char **)f->esp + 1);
+
+			if(file == NULL || !is_valid_user_pointer(file))
+				userprog_fail(f);
 
 			bool ret = filesys_remove(file);
 			f->eax = ret;
@@ -121,9 +127,21 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_OPEN:
 		{
-			char * file = *((char **)f->esp + 1);
+			if(!validate_arguments(1, f))
+				userprog_fail(f);
+
+			char * file_name = *((char **)f->esp + 1);
+
+			if(!is_valid_user_pointer(file_name))
+				userprog_fail(f);
+
+
 			struct thread_file * tf = (struct thread_file *)malloc(sizeof (struct thread_file));
-			tf->fdfile = filesys_open(file);
+			tf->fdfile = filesys_open(file_name);
+
+			if(!is_valid_user_pointer(tf->fdfile))
+				userprog_fail(f);
+
 			tf->pos = 0;
 			struct thread * t = thread_current();
 			lock_acquire(t->last_fd_lock);
