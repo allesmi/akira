@@ -8,6 +8,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "userprog/process.h"
 #include "filesys/filesys.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
@@ -59,13 +60,17 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_EXEC:
 		{
+			char * file = *((char **)f->esp + 1);
+			pid_t pid = process_execute(file);
+			f->eax = pid;
 			break;
 		}
 		case SYS_WAIT:
 		{
 			pid_t pid = *(int *)(f->esp + 1);
 
-			// TODO
+			int status = process_wait(pid);
+			f->eax = status;
 			
 			break;
 		}
@@ -144,13 +149,14 @@ syscall_handler (struct intr_frame *f)
 	}
 }
 
-
-void halt (void)
+static void
+halt (void)
 {
 	shutdown_power_off();
 }
 
-void exit (int status)
+static void
+exit (int status)
 {
 	printf("%s: exit(%d)\n", thread_current()->name, status);
 	thread_exit();
