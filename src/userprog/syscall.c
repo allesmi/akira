@@ -72,7 +72,7 @@ syscall_handler (struct intr_frame *f)
 		case SYS_CREATE:
 		{
 			char * file = *((char **)f->esp + 1);
-			if(file == NULL)
+			if(file == NULL || !is_valid_user_pointer((const void *) file))
 				userprog_fail(f);
 			unsigned initial_size = *((unsigned *)f->esp + 2);
 			bool ret = filesys_create(file, initial_size);
