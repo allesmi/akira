@@ -24,13 +24,27 @@ syscall_init (void)
 }
 
 static bool
-is_valid_user_pointer(const void * charlie)
+is_valid_user_pointer (const void * charlie)
 {
 	return is_user_vaddr(charlie) && pagedir_get_page(thread_current()->pagedir, charlie) != NULL;
 }
 
+static bool
+validate_arguments (int arg_count, struct  intr_frame *f)
+{
+	int i;
+
+	for(i = 1; i <= arg_count; i++)
+	{
+		if (!is_valid_user_pointer(f->esp + i))
+	    	return false;
+	}
+
+	return true;
+}
+
 static void
-userprog_fail(struct intr_frame *f)
+userprog_fail (struct intr_frame *f)
 {
 	f->eax = -1;
 	sys_exit(-1);
@@ -78,9 +92,18 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_CREATE:
 		{
+			/*char * file = *((char **)f->esp + 1);
+			if(file == NULL || !is_valid_user_pointer((const void *) file))
+				userprog_fail(f);
+			unsigned initial_size = *((unsigned *)f->esp + 2);
+			*/
+			if(!validate_arguments(2, f))
+				userprog_fail(f);
+
 			char * file = *((char **)f->esp + 1);
 			if(file == NULL || !is_valid_user_pointer((const void *) file))
 				userprog_fail(f);
+
 			unsigned initial_size = *((unsigned *)f->esp + 2);
 			bool ret = filesys_create(file, initial_size);
 			f->eax = ret;
@@ -125,8 +148,15 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_WRITE:
 		{
+			if(!validate_arguments(3, f))
+				userprog_fail(f);
+
 			int fd = *((int *)f->esp + 1);
 			void * buf = *((void **)f->esp + 2);
+
+			if(!is_valid_user_pointer(buf))
+				userprog_fail(f);
+
 			unsigned size = *((unsigned *)f->esp + 3);
 			// printf("%d: %x, %x, %d\n", SYS_WRITE, fd, &buf, size);
 			if(fd == STDOUT_FILENO)
