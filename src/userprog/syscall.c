@@ -95,14 +95,6 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_CREATE:
 		{
-			/*char * file = *((char **)f->esp + 1);
-			if(file == NULL || !is_valid_user_pointer((const void *) file))
-				userprog_fail(f);
-			unsigned initial_size = *((unsigned *)f->esp + 2);
-			*/
-			if (!validate_arguments (2, f))
-				userprog_fail (f);
-
 			char * file = *((char **) f->esp + 1);
 			if (file == NULL || !is_valid_user_pointer ((const void *) file))
 				userprog_fail (f);
