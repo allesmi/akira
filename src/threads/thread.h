@@ -114,7 +114,7 @@ struct thread
     int niceness;
     fixed_point recent_cpu;
 
-    struct list files;
+    struct list thread_files;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
