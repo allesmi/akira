@@ -16,7 +16,7 @@
 static void syscall_handler (struct intr_frame *);
 static void sys_halt (void);
 static void sys_exit (int status);
-static struct thread_file * get_thread_file (int fd);
+struct thread_file * get_thread_file (int fd);
 
 void
 syscall_init (void) 
@@ -143,6 +143,25 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_READ:
 		{
+			int fd = *((int *)f->esp + 1);
+			void * buf = *((void **)f->esp + 2);
+
+			if(!is_valid_user_pointer(buf))
+				userprog_fail(f);
+
+			unsigned size = *((unsigned *)f->esp + 3);
+			struct thread_file * current_tf = get_thread_file (fd);
+
+			if (current_tf != NULL)
+			{
+				f->eax = file_read (current_tf->fdfile, buf, size);
+			}
+			else if(fd == STDIN_FILENO)
+			{
+				input_getc();
+				f->eax = size;
+			}
+
 			break;
 		}
 		case SYS_WRITE:
@@ -154,10 +173,16 @@ syscall_handler (struct intr_frame *f)
 				userprog_fail(f);
 
 			unsigned size = *((unsigned *)f->esp + 3);
-			// printf("%d: %x, %x, %d\n", SYS_WRITE, fd, &buf, size);
-			if(fd == STDOUT_FILENO)
+			struct thread_file * current_tf = get_thread_file (fd);
+
+			if (current_tf != NULL)
+			{
+				f->eax = file_write (current_tf->fdfile, buf, size);
+			}
+			else if(fd == STDOUT_FILENO)
 			{
 				putbuf(buf, size);
+				f->eax = size;
 			}
 
 			break;
@@ -213,21 +238,22 @@ sys_exit (int status)
 	thread_exit ();
 }
 
-static struct
+struct
 thread_file * get_thread_file (int fd)
 {
 	struct thread *current = thread_current ();
 	struct list_elem * e;
 	struct thread_file * current_tf;
 
-	for (e = list_begin (&current->thread_files); e != list_end (&current->thread_files);
+	//TODO: fix kernel panic
+	/*for (e = list_begin (&current->thread_files); e != list_end (&current->thread_files);
 		e = list_next (e))
 	{
 		current_tf = list_entry (e, struct thread_file, elem);
 
 		if (current_tf->fd == fd)
 			return current_tf;
-	}
+	}*/
 
 	return NULL;
 }
