@@ -29,20 +29,6 @@ is_valid_user_pointer (const void * charlie)
 	return is_user_vaddr (charlie) && pagedir_get_page (thread_current()->pagedir, charlie) != NULL;
 }
 
-static bool
-validate_arguments (int arg_count, struct  intr_frame *f)
-{
-	int i;
-
-	for (i = 1; i <= arg_count; i++)
-	{
-		if (!is_valid_user_pointer (f->esp + i))
-	    	return false;
-	}
-
-	return true;
-}
-
 static void
 userprog_fail (struct intr_frame *f)
 {
@@ -69,9 +55,11 @@ syscall_handler (struct intr_frame *f)
 		{
 			if (!is_valid_user_pointer (f->esp + 4))
 				userprog_fail (f);
+
 			int status = *((int *) f->esp + 1);
 			f->eax = status;
 			sys_exit (status);
+			
 			break;
 		}
 		case SYS_EXEC:
@@ -83,9 +71,6 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_WAIT:
 		{
-			if (!validate_arguments (1, f))
-				userprog_fail (f);
-
 			pid_t pid = *((int *) f->esp + 1);
 
 			int status = process_wait (pid);
@@ -107,9 +92,6 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_REMOVE:
 		{
-			if (!validate_arguments (1, f))
-				userprog_fail (f);
-
 			char * file = *((char **)f->esp + 1);
 
 			if (file == NULL || !is_valid_user_pointer (file))
@@ -122,9 +104,6 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_OPEN:
 		{
-			if (!validate_arguments (1, f))
-				userprog_fail (f);
-
 			char * file_name = *((char **) f->esp + 1);
 
 			if (!is_valid_user_pointer (file_name))
@@ -161,9 +140,6 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_WRITE:
 		{
-			if(!validate_arguments(3, f))
-				userprog_fail(f);
-
 			int fd = *((int *)f->esp + 1);
 			void * buf = *((void **)f->esp + 2);
 
