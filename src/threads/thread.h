@@ -125,6 +125,7 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    semaphore alive;
 #endif
 
     /* Owned by thread.c. */
