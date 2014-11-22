@@ -18,10 +18,13 @@ static void sys_halt (void);
 static void sys_exit (int status);
 struct thread_file * get_thread_file (int fd);
 
+struct lock syscall_lock;
+
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init(&syscall_lock);
 }
 
 static bool
@@ -43,6 +46,14 @@ syscall_handler (struct intr_frame *f)
 	if (f->esp == NULL || !is_valid_user_pointer ((const void *) f->esp))
 	{
 		userprog_fail (f);
+	}
+
+	struct thread *current = thread_current ();
+
+	if (current->last_fd == 0)
+	{
+		current->last_fd = 2;
+		list_init (&current->thread_files);
 	}
 
 	switch (* (int *)(f->esp))
@@ -86,7 +97,9 @@ syscall_handler (struct intr_frame *f)
 				userprog_fail (f);
 
 			unsigned initial_size = *((unsigned *) f->esp + 2);
+			lock_acquire (&syscall_lock);
 			bool ret = filesys_create (file, initial_size);
+			lock_release (&syscall_lock);
 			f->eax = ret;
 
 			break;
@@ -98,7 +111,9 @@ syscall_handler (struct intr_frame *f)
 			if (file == NULL || !is_valid_user_pointer (file))
 				userprog_fail (f);
 
-			bool ret = filesys_remove(file);
+			lock_acquire (&syscall_lock);
+			bool ret = filesys_remove (file);
+			lock_release (&syscall_lock);
 			f->eax = ret;
 
 			break;
@@ -110,34 +125,43 @@ syscall_handler (struct intr_frame *f)
 			if (file_name == NULL || !is_valid_user_pointer (file_name))
 				userprog_fail (f);
 
+			struct thread_file * tf = malloc(sizeof (struct thread_file));
+			struct file *file;
 
-			struct thread_file * tf = (struct thread_file *)malloc(sizeof (struct thread_file));
-			tf->fdfile = filesys_open (file_name);
+			lock_acquire (&syscall_lock);
+			file = filesys_open (file_name);
 
-			if(tf->fdfile == NULL)
-				userprog_fail(f);
+			if(file == NULL)
+			{
+				f->eax = -1;
+				lock_release (&syscall_lock);
+			}
+			else
+			{
+				tf->fdfile = file;
 
-			tf->pos = 0;
-			struct thread * current= thread_current ();
-			lock_acquire(current->last_fd_lock);
-			current->last_fd++;
-			tf->fd = current->last_fd;
-			lock_release (current->last_fd_lock);
+				tf->fd = current->last_fd;
+				current->last_fd++;
 
-			// TODO: Do we have to sync here?
-			list_push_back(&current->thread_files, &tf->elem);
+				list_push_back (&current->thread_files, &tf->elem);
+				lock_release (&syscall_lock);
 
-			f->eax = tf->fd;
+				f->eax = tf->fd;
+			}
 
 			break;
 		}
 		case SYS_FILESIZE:
 		{
 			int fd = *((int *) f->esp + 1);
+
+			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
 
 			if (current_tf != NULL)
 				f->eax = file_length (current_tf->fdfile);
+
+			lock_release (&syscall_lock);
 
 			break;
 		}
@@ -146,10 +170,13 @@ syscall_handler (struct intr_frame *f)
 			int fd = *((int *)f->esp + 1);
 			void * buf = *((void **)f->esp + 2);
 
-			if(!is_valid_user_pointer(buf))
-				userprog_fail(f);
+			if(!is_valid_user_pointer (buf))
+				userprog_fail (f);
 
 			unsigned size = *((unsigned *)f->esp + 3);
+
+
+			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
 
 			if (current_tf != NULL)
@@ -158,9 +185,11 @@ syscall_handler (struct intr_frame *f)
 			}
 			else if(fd == STDIN_FILENO)
 			{
-				input_getc();
+				input_getc ();
 				f->eax = size;
 			}
+
+			lock_release (&syscall_lock);
 
 			break;
 		}
@@ -169,10 +198,12 @@ syscall_handler (struct intr_frame *f)
 			int fd = *((int *)f->esp + 1);
 			void * buf = *((void **)f->esp + 2);
 
-			if(!is_valid_user_pointer(buf))
-				userprog_fail(f);
+			if(!is_valid_user_pointer (buf))
+				userprog_fail (f);
 
 			unsigned size = *((unsigned *)f->esp + 3);
+
+			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
 
 			if (current_tf != NULL)
@@ -185,40 +216,54 @@ syscall_handler (struct intr_frame *f)
 				f->eax = size;
 			}
 
+			lock_release (&syscall_lock);
+
 			break;
 		}
 		case SYS_SEEK:
 		{
 			int fd = *((int *)f->esp + 1);
 			unsigned position = *((unsigned *) f->esp + 2);
+
+			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
 
 			if (current_tf != NULL)
 				file_seek (current_tf->fdfile, position);
 
+			lock_release (&syscall_lock);
+			
 			break;
 		}
 		case SYS_TELL:
 		{
 			int fd = *((int *)f->esp + 1);
+
+			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
 
 			if (current_tf != NULL)
 				f->eax = file_tell (current_tf->fdfile);
+
+			lock_release (&syscall_lock);
 
 			break;
 		}
 		case SYS_CLOSE:
 		{
 			int fd = *((int *)f->esp + 1);
+
+			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
 
 			if (current_tf != NULL)
 			{
-				list_remove(&current_tf->elem);
-				file_close(current_tf->fdfile);
-				free(current_tf);
+				list_remove (&current_tf->elem);
+				file_close (current_tf->fdfile);
+				free (current_tf);
 			}
+
+			lock_release (&syscall_lock);
 
 			break;
 		}
@@ -245,15 +290,14 @@ thread_file * get_thread_file (int fd)
 	struct list_elem * e;
 	struct thread_file * current_tf;
 
-	//TODO: fix kernel panic
-	/*for (e = list_begin (&current->thread_files); e != list_end (&current->thread_files);
+	for (e = list_begin (&current->thread_files); e != list_end (&current->thread_files);
 		e = list_next (e))
 	{
 		current_tf = list_entry (e, struct thread_file, elem);
 
 		if (current_tf->fd == fd)
 			return current_tf;
-	}*/
+	}
 
 	return NULL;
 }
