@@ -6,10 +6,24 @@
 #include <stdint.h>
 
 #include "threads/fixed-point.h"
+#include "threads/synch.h"
 #include "filesys/file.h"
 
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+
+/* Thread identifier type.
+   You can redefine this to whatever type you like. */
+typedef int tid_t;
+#define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
+
+/* Thread priorities. */
+#define PRI_MIN 0                       /* Lowest priority. */
+#define PRI_DEFAULT 31                  /* Default priority. */
+#define PRI_MAX 63                      /* Highest priority. */
+
+/* Maximum number of priority donors*/
+#define MAX_DONATERS 8
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -27,18 +41,15 @@ struct thread_file
     int fd;
   };
 
-/* Thread identifier type.
-   You can redefine this to whatever type you like. */
-typedef int tid_t;
-#define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
+/* Data the parent thread needs to know about its child */
+struct child_data
+{
+  tid_t tid;                /* tid of the child*/
+  struct semaphore alive;   /* A semaphore to signal child process termination */
+  int return_value;         /* The return value of the child */
+  struct list_elem elem;    /* List element */
+};
 
-/* Thread priorities. */
-#define PRI_MIN 0                       /* Lowest priority. */
-#define PRI_DEFAULT 31                  /* Default priority. */
-#define PRI_MAX 63                      /* Highest priority. */
-
-/* Maximum number of priority donors*/
-#define MAX_DONATERS 8
 
 /* A kernel thread or user process.
 
@@ -122,7 +133,11 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    semaphore alive;
+    struct semaphore alive;             /* Sema to sync exec */
+    int load_success;                   /* Load success */
+    struct thread * parent;             /* Parent thread */
+    struct list children;               /* A list of children */
+    struct file * executable;           /* The threads executable */
 #endif
 
     /* Owned by thread.c. */
@@ -150,6 +165,7 @@ void thread_block (void);
 void thread_unblock (struct thread *);
 
 struct thread *thread_current (void);
+struct thread *thread_find_by_tid(tid_t tid);
 tid_t thread_tid (void);
 const char *thread_name (void);
 

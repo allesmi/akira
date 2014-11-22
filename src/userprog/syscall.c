@@ -10,6 +10,7 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "filesys/filesys.h"
+#include "threads/thread.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
 
@@ -279,7 +280,26 @@ sys_halt (void)
 static void
 sys_exit (int status)
 {
-	printf ("%s: exit(%d)\n", thread_current()->name, status);
+	struct thread * t = thread_current();
+	printf ("%s: exit(%d)\n", thread_name(), status);
+
+	struct thread * parent = t->parent;
+	if(parent != NULL)
+	{
+		struct list_elem *e;
+
+		for (e = list_begin (&parent->children); e != list_end (&parent->children);
+		     e = list_next (e))
+		{
+			struct child_data *c = list_entry (e, struct child_data, elem);
+			if(c->tid == thread_current()->tid)
+			{
+				c->return_value = status;
+				sema_up(&c->alive);
+			}
+		}
+	}
+
 	thread_exit ();
 }
 

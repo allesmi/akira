@@ -23,6 +23,12 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+struct process_data
+{
+  struct thread * parent;
+  char * file_name;
+};
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -30,6 +36,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+  struct process_data pd;
   char *fn_copy, *filename_copy;
   char *token, *save_ptr;
   tid_t tid;
@@ -50,23 +57,49 @@ process_execute (const char *file_name)
 
   token = strtok_r (filename_copy, " ", &save_ptr);
 
+  pd.file_name = fn_copy;
+  pd.parent = thread_current();
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (token, PRI_DEFAULT, start_process, &pd);
   
+  if(tid != TID_ERROR)
+  {
+    struct thread * t = thread_find_by_tid(tid);
+    if(t!= NULL)
+    {
+      sema_down(&t->alive);
+      tid = t->load_success;
+
+      struct child_data * c = (struct child_data *)malloc(sizeof(struct child_data));
+      c->tid = tid;
+      sema_init(&c->alive, 0);
+      c->return_value = -1;
+
+      list_push_back(&thread_current()->children, &c->elem);
+    }
+    else
+    {
+      tid = TID_ERROR;
+    }
+  }
+
   if (tid == TID_ERROR)
   {
     palloc_free_page (filename_copy);
     palloc_free_page (fn_copy); 
   }
+  
   return tid;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name_)
+start_process (void *process_data_)
 {
-  char *file_name = file_name_;
+  struct process_data * pd = process_data_;
+  char *file_name = pd->file_name;
   struct intr_frame if_;
   bool success;
 
@@ -77,10 +110,21 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
+  struct thread * t = thread_current();
+
+  t->parent = pd->parent;
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success)
+  {
+    t->load_success = -1;
+    sema_up(&t->alive);
     thread_exit ();
+  }
+
+  t->load_success = t->tid;
+  sema_up(&t->alive);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -102,9 +146,23 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  timer_msleep(1000);
+  struct thread * t = thread_current();
+  struct list_elem *e;
+
+  for (e = list_begin (&t->children); e != list_end (&t->children);
+       e = list_next (e))
+  {
+    struct child_data * c = list_entry(e, struct child_data, elem);
+    if(c->tid == child_tid)
+    {
+      sema_down(&c->alive);
+      list_remove(e);
+      return c->return_value;
+    }
+  }
+
   return -1;
 }
 
@@ -114,6 +172,8 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  file_close(cur->executable);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -391,7 +451,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   {
     palloc_free_page(filename_copy);
   }
-  file_close (file);
+
+  t->executable = file;
+  file_deny_write(file);
+  // file_close (file);
   return success;
 }
 /* load() helpers. */
