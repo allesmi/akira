@@ -56,6 +56,8 @@ syscall_handler (struct intr_frame *f)
 		list_init (&current->thread_files);
 	}
 
+	// printf("Syscall %d by '%s'.\n", *(int *)f->esp, thread_name());
+
 	switch (* (int *)(f->esp))
 	{
 		case SYS_HALT:
@@ -79,8 +81,10 @@ syscall_handler (struct intr_frame *f)
 			char * file = *((char **) f->esp + 1);
 			if (file == NULL || !is_valid_user_pointer ((const void *) file))
 				userprog_fail (f);
+			lock_acquire(&syscall_lock);
 			pid_t pid = process_execute (file);
 			f->eax = pid;
+			lock_release(&syscall_lock);
 			break;
 		}
 		case SYS_WAIT:
@@ -177,6 +181,7 @@ syscall_handler (struct intr_frame *f)
 
 			unsigned size = *((unsigned *)f->esp + 3);
 
+			// printf("\tread(fd=%d, buf=%x, size=%d)\n", fd, buf, size);
 
 			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
@@ -187,9 +192,11 @@ syscall_handler (struct intr_frame *f)
 			}
 			else if(fd == STDIN_FILENO)
 			{
-				input_getc ();
+				// TODO:
+				// input_getc ();
 				f->eax = size;
 			}
+			// printf("\tRead %d bytes\n", f->eax);
 
 			lock_release (&syscall_lock);
 
