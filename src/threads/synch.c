@@ -117,7 +117,7 @@ sema_up (struct semaphore *sema)
   sema->value++;
   if (!list_empty (&sema->waiters))
   {
-    list_sort(&sema->waiters, smaller_priority, NULL);
+    // list_sort(&sema->waiters, smaller_priority, NULL);
     thread_unblock (list_entry (list_pop_back (&sema->waiters),
                                 struct thread, elem));
     if(intr_context())
