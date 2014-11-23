@@ -49,7 +49,10 @@ process_execute (const char *file_name)
 
   filename_copy = palloc_get_page (0);
   if (filename_copy == NULL)
+  {
+    palloc_free_page(fn_copy);
     return TID_ERROR;
+  }
 
 
   strlcpy (fn_copy, file_name, PGSIZE);
@@ -86,11 +89,10 @@ process_execute (const char *file_name)
     }
   }
 
-  if (tid == TID_ERROR)
-  {
-    palloc_free_page (filename_copy);
-    palloc_free_page (fn_copy); 
-  }
+  /* By now the child process is loaded, we no longer need these
+    strings */
+  palloc_free_page (filename_copy);
+  palloc_free_page (fn_copy); 
   
   return tid;
 }
@@ -182,8 +184,17 @@ process_exit (void)
     struct thread_file *tf = list_entry(e, struct thread_file, elem);
 
     file_close(tf->fdfile);
+    free(tf);
   }
 
+  /* Free all metadata for child processes */
+  while(!list_empty(&cur->children))
+  {
+    struct list_elem *e = list_pop_back(&cur->children);
+    struct child_data *c = list_entry(e, struct child_data, elem);
+
+    free(c);
+  }
 
   struct thread * parent = cur->parent;
   if(parent != NULL)
@@ -418,6 +429,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
 
   char ** argv = (char **) malloc(5 * sizeof(char *));
+
+  if(argv == NULL)
+  {
+    success = false;
+    goto done;
+  }
+
   int argv_size = 5;
   int argc = 0;
 
