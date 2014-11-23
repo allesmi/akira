@@ -67,7 +67,7 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_EXIT:
 		{
-			if (!is_valid_user_pointer (f->esp + 4))
+			if (!is_valid_user_pointer ((int *)f->esp + 1))
 				userprog_fail (f);
 
 			int status = *((int *) f->esp + 1);
