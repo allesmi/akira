@@ -70,13 +70,15 @@ process_execute (const char *file_name)
     {
       sema_down(&t->alive);
       tid = t->load_success;
+      if(tid >= 0)
+      {
+        struct child_data * c = (struct child_data *)malloc(sizeof(struct child_data));
+        c->tid = tid;
+        sema_init(&c->alive, 0);
+        c->return_value = -1;
 
-      struct child_data * c = (struct child_data *)malloc(sizeof(struct child_data));
-      c->tid = tid;
-      sema_init(&c->alive, 0);
-      c->return_value = -1;
-
-      list_push_back(&thread_current()->children, &c->elem);
+        list_push_back(&thread_current()->children, &c->elem);
+      }
     }
     else
     {
@@ -115,7 +117,6 @@ start_process (void *process_data_)
   t->parent = pd->parent;
 
   /* If load failed, quit. */
-  palloc_free_page (file_name);
   if (!success)
   {
     t->load_success = -1;
@@ -174,6 +175,23 @@ process_exit (void)
   uint32_t *pd;
 
   file_close(cur->executable);
+
+  struct thread * parent = cur->parent;
+  if(parent != NULL)
+  {
+    struct list_elem *e;
+
+    for (e = list_begin (&parent->children); e != list_end (&parent->children);
+         e = list_next (e))
+    {
+      struct child_data *c = list_entry (e, struct child_data, elem);
+      if(c->tid == thread_current()->tid)
+      {
+        c->return_value = cur->return_value;
+        sema_up(&c->alive);
+      }
+    }
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -443,6 +461,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
+  t->executable = file;
+  file_deny_write(file);
+
   success = true;
 
  done:
@@ -452,8 +473,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
     palloc_free_page(filename_copy);
   }
 
-  t->executable = file;
-  file_deny_write(file);
   // file_close (file);
   return success;
 }

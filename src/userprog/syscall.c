@@ -78,6 +78,8 @@ syscall_handler (struct intr_frame *f)
 		case SYS_EXEC:
 		{
 			char * file = *((char **) f->esp + 1);
+			if (file == NULL || !is_valid_user_pointer ((const void *) file))
+				userprog_fail (f);
 			pid_t pid = process_execute (file);
 			f->eax = pid;
 			break;
@@ -280,25 +282,9 @@ sys_halt (void)
 static void
 sys_exit (int status)
 {
-	struct thread * t = thread_current();
 	printf ("%s: exit(%d)\n", thread_name(), status);
 
-	struct thread * parent = t->parent;
-	if(parent != NULL)
-	{
-		struct list_elem *e;
-
-		for (e = list_begin (&parent->children); e != list_end (&parent->children);
-		     e = list_next (e))
-		{
-			struct child_data *c = list_entry (e, struct child_data, elem);
-			if(c->tid == thread_current()->tid)
-			{
-				c->return_value = status;
-				sema_up(&c->alive);
-			}
-		}
-	}
+	thread_current()->return_value = status;
 
 	thread_exit ();
 }

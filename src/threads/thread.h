@@ -138,6 +138,7 @@ struct thread
     struct thread * parent;             /* Parent thread */
     struct list children;               /* A list of children */
     struct file * executable;           /* The threads executable */
+    int return_value;
 #endif
 
     /* Owned by thread.c. */
