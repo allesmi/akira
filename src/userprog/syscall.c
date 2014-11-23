@@ -13,6 +13,7 @@
 #include "threads/thread.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
+#include "devices/input.h"
 
 static void syscall_handler (struct intr_frame *);
 static void sys_halt (void);
@@ -81,10 +82,12 @@ syscall_handler (struct intr_frame *f)
 			char * file = *((char **) f->esp + 1);
 			if (file == NULL || !is_valid_user_pointer ((const void *) file))
 				userprog_fail (f);
-			lock_acquire(&syscall_lock);
+
+			lock_acquire (&syscall_lock);
 			pid_t pid = process_execute (file);
 			f->eax = pid;
-			lock_release(&syscall_lock);
+			lock_release (&syscall_lock);
+			
 			break;
 		}
 		case SYS_WAIT:
@@ -192,8 +195,14 @@ syscall_handler (struct intr_frame *f)
 			}
 			else if(fd == STDIN_FILENO)
 			{
-				// TODO:
-				// input_getc ();
+				unsigned i;
+				uint8_t * input_buffer = buf;
+
+				for (i = 0; i < size; i++)
+				{
+					input_buffer[i] = input_getc ();
+				}
+
 				f->eax = size;
 			}
 			// printf("\tRead %d bytes\n", f->eax);
