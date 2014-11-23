@@ -16,7 +16,6 @@
 
 static void syscall_handler (struct intr_frame *);
 static void sys_halt (void);
-static void sys_exit (int status);
 struct thread_file * get_thread_file (int fd);
 
 struct lock syscall_lock;
@@ -38,7 +37,7 @@ static void
 userprog_fail (struct intr_frame *f)
 {
 	f->eax = -1;
-	sys_exit(-1);
+	syscall_exit(-1);
 }
 
 static void
@@ -71,7 +70,7 @@ syscall_handler (struct intr_frame *f)
 
 			int status = *((int *) f->esp + 1);
 			f->eax = status;
-			sys_exit (status);
+			syscall_exit (status);
 
 			break;
 		}
@@ -279,8 +278,8 @@ sys_halt (void)
 	shutdown_power_off ();
 }
 
-static void
-sys_exit (int status)
+void
+syscall_exit (int status)
 {
 	printf ("%s: exit(%d)\n", thread_name(), status);
 

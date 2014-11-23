@@ -174,7 +174,16 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  /* Close all files */
   file_close(cur->executable);
+  while(cur->last_fd > 0 && !list_empty(&cur->thread_files))
+  {
+    struct list_elem *e = list_pop_back(&cur->thread_files);
+    struct thread_file *tf = list_entry(e, struct thread_file, elem);
+
+    file_close(tf->fdfile);
+  }
+
 
   struct thread * parent = cur->parent;
   if(parent != NULL)
