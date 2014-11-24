@@ -79,6 +79,9 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_EXEC:
 		{
+			if(!is_valid_user_pointer((char **) f->esp + 1))
+				userprog_fail (f);
+
 			char * file = *((char **) f->esp + 1);
 			if (file == NULL || !is_valid_user_pointer ((const void *) file))
 				userprog_fail (f);
@@ -92,6 +95,9 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_WAIT:
 		{
+			if (!is_valid_user_pointer ((int *)f->esp + 1))
+				userprog_fail (f);
+
 			pid_t pid = *((int *) f->esp + 1);
 
 			int status = process_wait (pid);
@@ -101,10 +107,15 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_CREATE:
 		{
+			if(!is_valid_user_pointer((char **) f->esp + 1))
+				userprog_fail (f);
+
 			char * file = *((char **) f->esp + 1);
 			if (file == NULL || !is_valid_user_pointer ((const void *) file))
 				userprog_fail (f);
 
+			if(!is_valid_user_pointer((unsigned *) f->esp + 2))
+				userprog_fail (f);
 			unsigned initial_size = *((unsigned *) f->esp + 2);
 			lock_acquire (&syscall_lock);
 			bool ret = filesys_create (file, initial_size);
@@ -115,6 +126,8 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_REMOVE:
 		{
+			if(!is_valid_user_pointer((char **) f->esp + 1))
+				userprog_fail (f);
 			char * file = *((char **)f->esp + 1);
 
 			if (file == NULL || !is_valid_user_pointer (file))
@@ -129,6 +142,8 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_OPEN:
 		{
+			if(!is_valid_user_pointer((char **) f->esp + 1))
+				userprog_fail (f);
 			char * file_name = *((char **) f->esp + 1);
 
 			if (file_name == NULL || !is_valid_user_pointer (file_name))
@@ -162,6 +177,9 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_FILESIZE:
 		{
+			if(!is_valid_user_pointer((int *) f->esp + 1))
+				userprog_fail (f);
+
 			int fd = *((int *) f->esp + 1);
 
 			lock_acquire (&syscall_lock);
@@ -176,12 +194,18 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_READ:
 		{
+			if(!is_valid_user_pointer((int *) f->esp + 1))
+				userprog_fail (f);
 			int fd = *((int *)f->esp + 1);
+			if(!is_valid_user_pointer((void **) f->esp + 2))
+				userprog_fail (f);
 			void * buf = *((void **)f->esp + 2);
 
 			if(!is_valid_user_pointer (buf))
 				userprog_fail (f);
 
+			if(!is_valid_user_pointer((unsigned *) f->esp + 3))
+				userprog_fail (f);
 			unsigned size = *((unsigned *)f->esp + 3);
 
 			// printf("\tread(fd=%d, buf=%x, size=%d)\n", fd, buf, size);
@@ -213,12 +237,19 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_WRITE:
 		{
+			if(!is_valid_user_pointer((int *) f->esp + 1))
+				userprog_fail (f);
 			int fd = *((int *)f->esp + 1);
+
+			if(!is_valid_user_pointer((void **) f->esp + 2))
+				userprog_fail (f);
 			void * buf = *((void **)f->esp + 2);
 
 			if(!is_valid_user_pointer (buf))
 				userprog_fail (f);
 
+			if(!is_valid_user_pointer((unsigned *) f->esp + 3))
+				userprog_fail (f);
 			unsigned size = *((unsigned *)f->esp + 3);
 
 			lock_acquire (&syscall_lock);
@@ -240,7 +271,12 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_SEEK:
 		{
+			if(!is_valid_user_pointer((int *) f->esp + 1))
+				userprog_fail (f);
 			int fd = *((int *)f->esp + 1);
+
+			if(!is_valid_user_pointer((unsigned *) f->esp + 2))
+				userprog_fail (f);
 			unsigned position = *((unsigned *) f->esp + 2);
 
 			lock_acquire (&syscall_lock);
@@ -255,6 +291,8 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_TELL:
 		{
+			if(!is_valid_user_pointer((int *) f->esp + 1))
+				userprog_fail (f);
 			int fd = *((int *)f->esp + 1);
 
 			lock_acquire (&syscall_lock);
@@ -269,6 +307,8 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_CLOSE:
 		{
+			if(!is_valid_user_pointer((int *) f->esp + 1))
+				userprog_fail (f);
 			int fd = *((int *)f->esp + 1);
 
 			lock_acquire (&syscall_lock);

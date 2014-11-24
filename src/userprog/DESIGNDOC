@@ -29,19 +29,33 @@ Alexander Miller <alles.mil@gmail.com>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+None.
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+Parsing is done via strtok_r(). Every token is pushed onto the stack and the address is saved.
+After the strings are pushed a padding is inserted so that the following values in the stack are word aligned. Then we push the saved addresses and after that the pointer to argv and argc. Finally a fake return adress is pushed.
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
+From the man pages (man 3 strtok):
+
+The strtok_r() function is a reentrant version of strtok(). The context pointer last must be provided on each call. The strtok_r() function may also be used to nest two parsing loops within one another, as long as separate context pointers are used.
+
+This means that strtok is using a global state, which can cause race conditions if threads want to use strtok concurrently. Assume that a program is started by process_execute. While tokenizing the arguments another thread is scheduled which may want tokenize another string. By using strtok_r, we pass the state via pointer.
+
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
+
+1) Support for wildcards, functions in the shell.
+2) Pipes
 
 			     SYSTEM CALLS
 			     ============
@@ -52,14 +66,57 @@ Alexander Miller <alles.mil@gmail.com>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct thread
+  {
+  // ...
+    struct list thread_files;           /* List of open files */
+    int last_fd;                        /* Last used # for file descriptor */
+    struct thread * parent;             /* Parent thread */
+    struct list children;               /* A list of children */
+    struct file * executable;           /* The threads executable */
+    int return_value
+   }
+
+/* Data the parent thread needs to know about its child */
+struct child_data
+{
+  tid_t tid;                /* tid of the child*/
+  struct semaphore alive;   /* A semaphore to signal child process termination */
+  int return_value;         /* The return value of the child */
+  struct list_elem elem;    /* List element */
+};
+
+/* An open file owned by a process */
+struct thread_file 
+  {
+    struct file * fdfile;   /* Pointer to kernel data structure */
+    int fd;                 /* File descriptor passed to the program */
+    struct list_elem elem;  /* List element */
+  };
+
+struct lock syscall_lock;	/* A lock for system calls */
+
+/* Data passed to the child process */
+struct process_data
+{
+  struct thread * parent; /* Pointer to parent thread */
+  char * file_name;       /* The command to execute*/
+  struct semaphore sema;  /* Semaphore for load success */
+  int load_success;       /* Load success */
+};
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+
+The file descriptors are unique per process. The file descriptor is an integer starting at 2 that increments with every opened file.
 
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
+
+The pointers are checked for validity. After that we search through the open files for the thread. If the file cannot be found we return 0 (0 bytes read/written). If the file descriptor is one of the reserved values for STDIN and STDOUT we use printf and input_getc, otherwise we call the file system functions.
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -68,8 +125,12 @@ Alexander Miller <alles.mil@gmail.com>
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
+We use pagedir_get_page() to check if a pointer points to a mapped page. We do this for every pointer argument to a system call. If the data is on the boundary of two pages this needs an additional call to pagedir_get_page. If the data would be aligned to page boundaries you would save one call.
+
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+A parent thread holds a list of its children. When he wants to wait for a child process he downs the semaphore for the child. When a child process exits, it stores its return value in the parent's list and ups its corresponding semaphore. The parent process is unblocked and can access the return value;
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -85,12 +146,55 @@ Alexander Miller <alles.mil@gmail.com>
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+As the system calls differ in type and number of arguments we choose code duplication over loosing readability. We check pointers before dereferencing them. The call to write looks like this:
+
+// ...
+
+case SYS_WRITE:
+{
+	if(!is_valid_user_pointer((int *) f->esp + 1))
+		userprog_fail (f);
+	int fd = *((int *)f->esp + 1);
+
+	if(!is_valid_user_pointer((void **) f->esp + 2))
+		userprog_fail (f);
+	void * buf = *((void **)f->esp + 2);
+
+	if(!is_valid_user_pointer (buf))
+		userprog_fail (f);
+
+	if(!is_valid_user_pointer((unsigned *) f->esp + 3))
+		userprog_fail (f);
+	unsigned size = *((unsigned *)f->esp + 3);
+
+	lock_acquire (&syscall_lock);
+	struct thread_file * current_tf = get_thread_file (fd);
+
+	if (current_tf != NULL)
+	{
+		f->eax = file_write (current_tf->fdfile, buf, size);
+	}
+	else if(fd == STDOUT_FILENO)
+	{
+		putbuf(buf, size);
+		f->eax = size;
+	}
+
+	lock_release (&syscall_lock);
+
+	break;
+}
+
+// ...
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+
+The parent thread passes a struct process_data to the child. This contains a semaphore which is upped by the child process when the load completed successfully or failed. The parent thread is unblocked and can read the load_success field. This field is passed back to the process that called "exec".
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -99,16 +203,24 @@ Alexander Miller <alles.mil@gmail.com>
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+When child C exits, it updates the metadata stored in the parent P. This way its possible that P can wait for C even when it already exited. When a process exits it releases all of its open files and metadata about children.
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
+We decided to implement the simpler way to handle user memory access. We check if a pointer passed to a system call is in the valid range. Also we modifiedthe page fault handler that an exception caused by a user program terminates it properly.
+
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+We do not reuse file descriptor numbers when a file is closed. A process that opens a very large number of files could cause an overflow, eventually overwriting the reserved descriptors for STDIN and STDOUT.
+
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+
+pids could be unique per-thread.
 
 			   SURVEY QUESTIONS
 			   ================
