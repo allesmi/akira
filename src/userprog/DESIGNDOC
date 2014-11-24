@@ -220,7 +220,7 @@ We do not reuse file descriptor numbers when a file is closed. A process that op
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
 
-pids could be unique per-thread.
+pids could be unique per-thread. We could differentiate between kernel threads and user processes. In our implementation every thread holds a list of open files, semaphores and other metadata only needed by user processes.
 
 			   SURVEY QUESTIONS
 			   ================
