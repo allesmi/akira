@@ -23,10 +23,13 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+/* Data passed to the child process */
 struct process_data
 {
-  struct thread * parent;
-  char * file_name;
+  struct thread * parent; /* Pointer to parent thread */
+  char * file_name;       /* The command to execute*/
+  struct semaphore sema;  /* Semaphore for load success */
+  int load_success;       /* Load success */
 };
 
 /* Starts a new thread running a user program loaded from
@@ -62,30 +65,23 @@ process_execute (const char *file_name)
 
   pd.file_name = fn_copy;
   pd.parent = thread_current();
+  sema_init(&pd.sema, 0);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (token, PRI_DEFAULT, start_process, &pd);
   
   if(tid != TID_ERROR)
   {
-    struct thread * t = thread_find_by_tid(tid);
-    if(t!= NULL)
+    sema_down(&pd.sema);
+    tid = pd.load_success;
+    if(tid >= 0)
     {
-      sema_down(&t->alive);
-      tid = t->load_success;
-      if(tid >= 0)
-      {
-        struct child_data * c = (struct child_data *)malloc(sizeof(struct child_data));
-        c->tid = tid;
-        sema_init(&c->alive, 0);
-        c->return_value = -1;
+      struct child_data * c = (struct child_data *)malloc(sizeof(struct child_data));
+      c->tid = tid;
+      sema_init(&c->alive, 0);
+      c->return_value = -1;
 
-        list_push_back(&thread_current()->children, &c->elem);
-      }
-    }
-    else
-    {
-      tid = TID_ERROR;
+      list_push_back(&thread_current()->children, &c->elem);
     }
   }
 
@@ -121,13 +117,13 @@ start_process (void *process_data_)
   /* If load failed, quit. */
   if (!success)
   {
-    t->load_success = -1;
-    sema_up(&t->alive);
+    pd->load_success = -1;
+    sema_up(&pd->sema);
     thread_exit ();
   }
 
-  t->load_success = t->tid;
-  sema_up(&t->alive);
+  pd->load_success = t->tid;
+  sema_up(&pd->sema);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in

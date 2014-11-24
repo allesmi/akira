@@ -688,7 +688,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   t->recent_cpu = 0;
-  sema_init(&t->alive, 0);
   list_init(&t->children);
 
   old_level = intr_disable ();

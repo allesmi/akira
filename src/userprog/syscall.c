@@ -19,7 +19,7 @@ static void syscall_handler (struct intr_frame *);
 static void sys_halt (void);
 struct thread_file * get_thread_file (int fd);
 
-struct lock syscall_lock;
+struct lock syscall_lock;	/* A lock for system calls */
 
 void
 syscall_init (void) 

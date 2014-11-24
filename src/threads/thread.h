@@ -34,11 +34,12 @@ enum thread_status
     THREAD_DYING        /* About to be destroyed. */
   };
 
+/* An open file owned by a process */
 struct thread_file 
   {
-    struct list_elem elem;
-    struct file * fdfile;
-    int fd;
+    struct file * fdfile;   /* Pointer to kernel data structure */
+    int fd;                 /* File descriptor passed to the program */
+    struct list_elem elem;  /* List element */
   };
 
 /* Data the parent thread needs to know about its child */
@@ -124,8 +125,8 @@ struct thread
     int niceness;
     fixed_point recent_cpu;
 
-    struct list thread_files;
-    int last_fd;
+    struct list thread_files;           /* List of open files */
+    int last_fd;                        /* Last used # for file descriptor */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -133,12 +134,10 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    struct semaphore alive;             /* Sema to sync exec */
-    int load_success;                   /* Load success */
     struct thread * parent;             /* Parent thread */
     struct list children;               /* A list of children */
     struct file * executable;           /* The threads executable */
-    int return_value;
+    int return_value;                   /* Return value for parent */
 #endif
 
     /* Owned by thread.c. */
