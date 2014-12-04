@@ -45,7 +45,7 @@ struct thread_file
 /* Data the parent thread needs to know about its child */
 struct child_data
 {
-  tid_t tid;                /* tid of the child*/
+  tid_t tid;                /* tid of the child */
   struct semaphore alive;   /* A semaphore to signal child process termination */
   int return_value;         /* The return value of the child */
   struct list_elem elem;    /* List element */
