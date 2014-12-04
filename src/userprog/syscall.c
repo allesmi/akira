@@ -34,6 +34,22 @@ is_valid_user_pointer (const void * charlie)
 	return is_user_vaddr (charlie) && pagedir_get_page (thread_current()->pagedir, charlie) != NULL;
 }
 
+static bool
+is_valid_user_pointer_range(const void * charlie, unsigned size)
+{
+	unsigned i;
+
+	for(i = (unsigned)charlie; i < (unsigned)charlie + size; i += PGSIZE)
+	{
+		if(!is_valid_user_pointer((const void *)i))
+		{
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 static void
 userprog_fail (struct intr_frame *f)
 {
@@ -208,6 +224,9 @@ syscall_handler (struct intr_frame *f)
 				userprog_fail (f);
 			unsigned size = *((unsigned *)f->esp + 3);
 
+			if(!is_valid_user_pointer_range(buf, size))
+				userprog_fail(f);
+
 			// printf("\tread(fd=%d, buf=%x, size=%d)\n", fd, buf, size);
 
 			lock_acquire (&syscall_lock);
@@ -251,6 +270,9 @@ syscall_handler (struct intr_frame *f)
 			if(!is_valid_user_pointer((unsigned *) f->esp + 3))
 				userprog_fail (f);
 			unsigned size = *((unsigned *)f->esp + 3);
+
+			if(!is_valid_user_pointer_range(buf, size))
+				userprog_fail(f);
 
 			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
