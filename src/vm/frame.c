@@ -5,9 +5,6 @@
 #include "threads/vaddr.h"
 #include "threads/palloc.h"
 
-// TODO: find out number of frames in physical memory
-static struct frame_entry frame_table[1000];
-
 static void evict_next_frame(void);
 static bool frames_available(void);
 
@@ -27,22 +24,24 @@ frame_alloc(void)
 	void * page = palloc_get_page(PAL_USER);
 	uintptr_t phys_address = vtop(page);
 
-	// Set pointer of frame_entry at PHYS_ADDRESS/PGSIZE to
+	// TODO: Set pointer of frame_entry at PHYS_ADDRESS/PGSIZE to
 	// PAGE.
 
-	return 0;
+	return page;
 }
 
 void
-frame_free(void * frame)
+frame_free(void * page)
 {
+	// TODO: delete entry in frame table
 
+	palloc_free_page(page);
 }
 
 static void
 evict_next_frame(void)
 {
-
+	// TODO: panic when there is no frame to evict
 }
 
 static bool

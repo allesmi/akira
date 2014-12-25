@@ -1,3 +1,6 @@
 #ifndef VM_PAGE_H
-#define VM_PAGE_H value
+#define VM_PAGE_H
+
+void page_init(void);
+
 #endif
