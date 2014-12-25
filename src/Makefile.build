@@ -65,6 +65,7 @@ userprog_SRC += userprog/tss.c		# TSS management.
 # Virtual memory code.
 vm_SRC  = vm/frame.c			# Frame table management
 vm_SRC += vm/swap.c 			# Swap disk management
+vm_SRC += vm/page.c 			# Page table management
 
 # Filesystem code.
 filesys_SRC  = filesys/filesys.c	# Filesystem core.
