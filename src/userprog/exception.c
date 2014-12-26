@@ -2,15 +2,21 @@
 #include "userprog/syscall.h"
 #include <inttypes.h>
 #include <stdio.h>
+#include <string.h>
 #include "userprog/gdt.h"
+#include "userprog/pagedir.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "vm/frame.h"
+#include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
+static bool install_page (void *upage, void *kpage, bool writable);
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -150,6 +156,38 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  if(user && not_present)
+  {
+    void * page = pg_round_down(fault_addr);
+    struct page_table_entry * pte = page_get_entry_for_vaddr(page);
+
+    if(pte != NULL && pte->state == ON_DISK)
+    {
+      printf("Swapping in to %p\n", fault_addr);
+      /* Get a page of memory. */
+      uint8_t *kpage = frame_alloc(); //palloc_get_page (PAL_USER);
+      if (kpage == NULL)
+        kill(f);
+
+      /* Load this page. */
+      if (file_read (pte->f, kpage, pte->size) != pte->size)
+      {
+        frame_free(kpage); //palloc_free_page (kpage);
+        kill(f); 
+      }
+      memset (kpage + pte->size, 0, PGSIZE - pte->size);
+
+      /* Add the page to the process's address space. */
+      if (!install_page (page, kpage, true))
+      {
+        frame_free(kpage); //palloc_free_page (kpage);
+        kill(f);
+      }
+
+      return;
+    }
+  }
+
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
@@ -162,5 +200,25 @@ page_fault (struct intr_frame *f)
   f->eip = (void *)f->eax;
   f->eax = 0xffffffff;
   kill (f);
+}
+
+/* Adds a mapping from user virtual address UPAGE to kernel
+   virtual address KPAGE to the page table.
+   If WRITABLE is true, the user process may modify the page;
+   otherwise, it is read-only.
+   UPAGE must not already be mapped.
+   KPAGE should probably be a page obtained from the user pool
+   with palloc_get_page().
+   Returns true on success, false if UPAGE is already mapped or
+   if memory allocation fails. */
+static bool
+install_page (void *upage, void *kpage, bool writable)
+{
+  struct thread *t = thread_current ();
+
+  /* Verify that there's not already a page at that virtual
+     address, then map our page there. */
+  return (pagedir_get_page (t->pagedir, upage) == NULL
+          && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
