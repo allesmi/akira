@@ -156,36 +156,36 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if(user && not_present)
+  if(user)
   {
-    void * page = pg_round_down(fault_addr);
-    struct page_table_entry * pte = page_get_entry_for_vaddr(page);
+    struct page_table_entry * pte = page_get_entry_for_vaddr(fault_addr);
 
     if(pte != NULL && pte->state == ON_DISK)
     {
-      printf("Swapping in to %p\n", fault_addr);
       /* Get a page of memory. */
-      uint8_t *kpage = frame_alloc(); //palloc_get_page (PAL_USER);
+      uint8_t *kpage = frame_alloc();
       if (kpage == NULL)
         kill(f);
 
       /* Load this page. */
-      if (file_read (pte->f, kpage, pte->size) != pte->size)
+      int read_bytes = file_read_at (pte->f, kpage, pte->size, pte->f_offset);
+
+      if (read_bytes != pte->size)
       {
         frame_free(kpage); //palloc_free_page (kpage);
         kill(f); 
       }
-      memset (kpage + pte->size, 0, PGSIZE - pte->size);
+      memset (kpage + pte->size, 0, PGSIZE-pte->size);
 
       /* Add the page to the process's address space. */
-      if (!install_page (page, kpage, true))
+      if (!install_page (pte->vaddr, kpage, true)) 
       {
         frame_free(kpage); //palloc_free_page (kpage);
-        kill(f);
+        kill(f); 
       }
-
-      return;
     }
+
+    return;
   }
 
   /* To implement virtual memory, delete the rest of the function
@@ -215,6 +215,9 @@ static bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
+
+  printf("Installing phys page %p as %s virtual page %p for %s.\n", 
+    kpage, writable?"writeable":"read-only",upage, thread_name());
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */

@@ -573,9 +573,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  file_seek (file, ofs);
+  uint8_t * initial = upage;
+  // file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
+      // /* Calculate how to fill this page.
+      //    We will read PAGE_READ_BYTES bytes from FILE
+      //    and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
       
@@ -585,13 +589,10 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       pte->size = page_read_bytes;
       pte->state = ON_DISK;
       pte->f = file;
-      pte->f_offset = upage;
+      pte->f_offset = ofs + (upage - initial);
 
       page_add_to_executabe_segment(pte);
 
-      // /* Calculate how to fill this page.
-      //    We will read PAGE_READ_BYTES bytes from FILE
-      //    and zero the final PAGE_ZERO_BYTES bytes. */
 
       // /* Get a page of memory. */
       // uint8_t *kpage = frame_alloc(); //palloc_get_page (PAL_USER);
