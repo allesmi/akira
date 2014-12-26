@@ -29,6 +29,7 @@ page_init(void)
 void
 page_add_to_executabe_segment(struct page_table_entry * pte)
 {
+	printf("Added to executable segment: %p+%d\n", pte->vaddr, pte->size);
 	list_push_back(&eseg.page_list, &pte->elem);
 	eseg.size++;
 }

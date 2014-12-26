@@ -35,7 +35,7 @@ struct page_table_entry
 	enum page_state state;
 	block_sector_t swap_slot;		/* When state is ON_SWAP */
 	struct file * f;				/* When state is ON_FILE */
-	uint8_t f_offset;
+	int f_offset;
 
 
 	struct list_elem elem;			/* List element */
