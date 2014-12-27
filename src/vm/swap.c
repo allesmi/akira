@@ -64,6 +64,7 @@ swap_store(void * page)
 		unused = unused + 1;
 		free_list = unused;
 	}
+	palloc_free_page(p);
 
 	block_write(swap_device, f, page);
 
