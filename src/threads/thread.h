@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 
+#include "lib/kernel/hash.h"
 #include "threads/fixed-point.h"
 #include "threads/synch.h"
 #include "filesys/file.h"
@@ -138,6 +139,8 @@ struct thread
     struct list children;               /* A list of children */
     struct file * executable;           /* The threads executable */
     int return_value;                   /* Return value for parent */
+
+    struct hash pages;
 #endif
 
     /* Owned by thread.c. */

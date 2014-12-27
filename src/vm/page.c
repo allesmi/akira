@@ -2,76 +2,53 @@
 
 #include "vm/page.h"
 
-#include "lib/kernel/bitmap.h"
-#include "lib/kernel/list.h"
+#include "lib/kernel/hash.h"
 #include "threads/vaddr.h"
-
-static struct bitmap * page_bm;
-
-/* Supplemental page table is seperated in segments. */
-static struct page_table_segment eseg;
-static struct page_table_segment sseg;
+#include "threads/thread.h"
 
 void
 page_init(void)
 {
-	page_bm = bitmap_create(382);
 
-	eseg.start = (void*)0x8048000;
-	eseg.size = 0;
-	list_init(&eseg.page_list);
-
-	sseg.start = (void*) PHYS_BASE;
-	sseg.size = 0; // remember stack grows downwards
-	list_init(&sseg.page_list);
 }
 
 void
-page_add_to_executabe_segment(struct page_table_entry * pte)
+page_add_to_executabe_segment(struct page * pte)
 {
-	printf("Added to executable segment: %p+%d\n", pte->vaddr, pte->size);
-	list_push_back(&eseg.page_list, &pte->elem);
-	eseg.size++;
+	struct thread * t = thread_current();
+	hash_insert(&t->pages, &pte->h_elem);
 }
 
-struct page_table_entry *
+struct page *
 page_get_entry_for_vaddr(void * vaddr)
 {
 	void * page_bound = pg_round_down(vaddr);
 
-	// search in executable segment
-	if(page_bound >= eseg.start && 
-		page_bound < (void *)(eseg.start + PGSIZE * eseg.size))
-	{
-		struct list_elem *e;
-		for (e = list_begin (&eseg.page_list); e != list_end (&eseg.page_list);
-			e = list_next (e))
-		{
-			struct page_table_entry *p = list_entry (e, struct page_table_entry, elem);
-			if(page_bound == p->vaddr)
-			{
-				return p;
-			}
-		}
-	}
+	struct thread * t = thread_current();
+	struct page pte;
+	struct hash_elem *e;
 
-	// search in stack segment
-	if(page_bound <= sseg.start && 
-		page_bound > (void *)(sseg.start - PGSIZE * sseg.size))
-	{
-		struct list_elem *e;
-		for (e = list_begin (&sseg.page_list); e != list_end (&sseg.page_list);
-			e = list_next (e))
-		{
-			struct page_table_entry *p = list_entry (e, struct page_table_entry, elem);
-			if(page_bound == p->vaddr)
-			{
-				return p;
-			}
-		}
-	}
+	pte.vaddr = page_bound;
 
-	// TODO: search in segments for mmaped files
+	e = hash_find(&t->pages, &pte.h_elem);
 
-	return NULL;
+	return e != NULL ? hash_entry(e, struct page, h_elem) :
+		NULL;
+}
+
+unsigned
+page_hash(const struct hash_elem *e, void * aux UNUSED)
+{
+	struct page * pte = hash_entry(e, struct page, h_elem);
+
+	return hash_bytes(&pte->vaddr, sizeof pte->vaddr);
+}
+
+bool
+page_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED)
+{
+	struct page * ptea = hash_entry(a, struct page, h_elem);
+	struct page * pteb = hash_entry(b, struct page, h_elem);
+
+	return ptea->vaddr < pteb->vaddr;
 }

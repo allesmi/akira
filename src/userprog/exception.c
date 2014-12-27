@@ -158,9 +158,9 @@ page_fault (struct intr_frame *f)
 
   if(user)
   {
-    struct page_table_entry * pte = page_get_entry_for_vaddr(fault_addr);
+    struct page * p = page_get_entry_for_vaddr(fault_addr);
 
-    if(pte != NULL && pte->state == ON_DISK)
+    if(p != NULL && p->state == ON_DISK)
     {
       /* Get a page of memory. */
       uint8_t *kpage = frame_alloc();
@@ -168,17 +168,17 @@ page_fault (struct intr_frame *f)
         kill(f);
 
       /* Load this page. */
-      int read_bytes = file_read_at (pte->f, kpage, pte->size, pte->f_offset);
+      int read_bytes = file_read_at (p->f, kpage, p->size, p->f_offset);
 
-      if (read_bytes != pte->size)
+      if (read_bytes != p->size)
       {
         frame_free(kpage); //palloc_free_page (kpage);
         kill(f); 
       }
-      memset (kpage + pte->size, 0, PGSIZE-pte->size);
+      memset (kpage + p->size, 0, PGSIZE - p->size);
 
       /* Add the page to the process's address space. */
-      if (!install_page (pte->vaddr, kpage, true)) 
+      if (!install_page (p->vaddr, kpage, true))
       {
         frame_free(kpage); //palloc_free_page (kpage);
         kill(f); 

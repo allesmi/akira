@@ -5,6 +5,7 @@
 
 #include "vm/swap.h"
 #include "lib/kernel/list.h"
+#include "lib/kernel/hash.h"
 
 enum page_state
 {
@@ -13,22 +14,13 @@ enum page_state
 	ON_SWAP
 };
 
-enum page_segment
+struct page_table
 {
-	STACK,
-	EXECUTABLE,
-	MMAPED_FILE
+	struct hash pages;
 };
 
-struct page_table_segment
-{
-	void * start;		/* Start address of this segment */
-	int size;		/* Number of pages for this segment (may grow) */
 
-	struct list page_list;
-};
-
-struct page_table_entry
+struct page
 {
 	void * vaddr;
 	int size;
@@ -38,11 +30,15 @@ struct page_table_entry
 	int f_offset;
 
 
-	struct list_elem elem;			/* List element */
+	struct list_elem l_elem;			/* List element */
+	struct hash_elem h_elem;			/* List element */
 };
 
 void page_init(void);
-void page_add_to_executabe_segment(struct page_table_entry * pte);
-struct page_table_entry * page_get_entry_for_vaddr(void * vaddr);
+void page_add_to_executabe_segment(struct page * pte);
+struct page * page_get_entry_for_vaddr(void * vaddr);
+
+unsigned page_hash(const struct hash_elem *e, void * aux);
+bool page_less(const struct hash_elem *a, const struct hash_elem *b, void *aux);
 
 #endif
