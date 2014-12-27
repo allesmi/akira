@@ -13,7 +13,7 @@ page_init(void)
 
 }
 
-void
+bool
 mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr, size_t page_read_bytes)
 {
 		struct page * pte = malloc(sizeof(struct page));
@@ -26,6 +26,16 @@ mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr, si
 		pte->writable = true;
 
 		page_add_to_executabe_segment(pte);
+
+		struct mapped_file *mmfile = malloc(sizeof(struct mapped_file));
+
+		mmfile->mapping = thread_current()->mapid;
+		mmfile->p = pte;
+		thread_current()->mapid++;
+		list_push_back(&thread_current()->mappedfiles, &mmfile->elem);
+
+		return true;
+
 }
 
 void

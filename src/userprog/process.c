@@ -8,6 +8,7 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
+#include "userprog/syscall.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -593,7 +594,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       pte->f_offset = ofs + (upage - initial);
 
       page_add_to_executabe_segment(pte);
-
+      printf("%p\n", upage);
+      printf("%d\n", page_read_bytes);
 
       // /* Get a page of memory. */
       // uint8_t *kpage = frame_alloc(); //palloc_get_page (PAL_USER);

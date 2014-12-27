@@ -216,6 +216,7 @@ install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
 
+  if(debug)
   printf("Installing phys page %p as %s virtual page %p for %s.\n", 
     kpage, writable?"writeable":"read-only",upage, thread_name());
 

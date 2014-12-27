@@ -375,7 +375,6 @@ syscall_handler (struct intr_frame *f)
 			mapid_t mapping = *((int *)f->esp + 1);
 			munmap(mapping);
 
-
 			break;
 		}
 	}
@@ -420,26 +419,37 @@ mapid_t
 mmap (int fd, void *addr)
 {
 	struct thread_file * current_tf = get_thread_file (fd);
-	struct file * file = current_tf->fdfile;
+	struct file * f = current_tf->fdfile;
+
+	int offset = 0;
+	int read_bytes = file_length(f);
+	
+	
+	while (read_bytes > 0)
+	{
+		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+
+		if (!mmfile_add_to_page_table (f, offset, read_bytes, addr, page_read_bytes))
+		{
+			return -1;
+		}
 
 
-	int ofs = 0;
-	int read_bytes = file_length(file);
+		read_bytes -= page_read_bytes;
+		offset += page_read_bytes;
+		addr += PGSIZE;	
+	}
 
-	size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-
-	struct mapped_file *mmfile = malloc(sizeof(struct mapped_file));
-
-	mmfile->mapping = thread_current()->mapid;
-	thread_current()->mapid++;
-	list_push_back(&thread_current()->mappedfiles, &mmfile->elem);
-
-	return mmfile->mapping;
-
+	return thread_current()->mapid;
 }
 
 void 
 munmap (mapid_t mapping)
+{
+	remove_mmap (mapping, false);
+}
+
+void remove_mmap (mapid_t mapping, bool all)
 {
 
 }

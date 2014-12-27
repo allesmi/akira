@@ -9,6 +9,7 @@
 #include "threads/fixed-point.h"
 #include "threads/synch.h"
 #include "filesys/file.h"
+#include "vm/page.h"
 
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
@@ -57,7 +58,7 @@ struct child_data
 struct mapped_file
 {
   mapid_t mapping;
-  
+  struct page * p;
   struct list_elem elem;
 };
 
