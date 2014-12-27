@@ -26,7 +26,7 @@ page_add_entry(struct page * p)
 }
 
 struct page *
-page_get_entry_for_vaddr(void * vaddr)
+page_get_entry_for_vaddr(const void * vaddr)
 {
 	void * page_bound = pg_round_down(vaddr);
 

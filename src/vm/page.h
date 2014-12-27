@@ -28,7 +28,7 @@ struct page
 	block_sector_t swap_slot;		/* When state is ON_SWAP */
 	struct file * f;				/* When state is ON_FILE */
 	int f_offset;
-
+	bool writable;
 
 	struct list_elem l_elem;			/* List element */
 	struct hash_elem h_elem;			/* List element */
@@ -37,7 +37,7 @@ struct page
 void page_init(void);
 void page_add_to_executabe_segment(struct page * pte);
 void page_add_entry(struct page * p);
-struct page * page_get_entry_for_vaddr(void * vaddr);
+struct page * page_get_entry_for_vaddr(const void * vaddr);
 
 unsigned page_hash(const struct hash_elem *e, void * aux);
 bool page_less(const struct hash_elem *a, const struct hash_elem *b, void *aux);
