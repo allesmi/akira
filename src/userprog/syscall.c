@@ -34,7 +34,9 @@ syscall_init (void)
 static bool
 is_valid_user_pointer (const void * charlie)
 {
-	return is_user_vaddr (charlie) && pagedir_get_page (thread_current()->pagedir, charlie) != NULL;
+	return is_user_vaddr (charlie) &&
+		(pagedir_get_page (thread_current()->pagedir, charlie) != NULL ||
+			page_get_entry_for_vaddr(charlie) != NULL);
 }
 
 static bool
@@ -216,6 +218,7 @@ syscall_handler (struct intr_frame *f)
 			if(!is_valid_user_pointer((int *) f->esp + 1))
 				userprog_fail (f);
 			int fd = *((int *)f->esp + 1);
+
 			if(!is_valid_user_pointer((void **) f->esp + 2))
 				userprog_fail (f);
 			void * buf = *((void **)f->esp + 2);

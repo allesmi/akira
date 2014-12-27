@@ -154,6 +154,7 @@ struct thread
     mapid_t mapid;
 
     struct hash pages;
+    void * stack_bound;
 #endif
 
     /* Owned by thread.c. */

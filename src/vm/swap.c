@@ -71,18 +71,14 @@ swap_store(void * page)
 	return f;
 }
 
-void *
-swap_retrieve(block_sector_t slot_no)
+void
+swap_retrieve(block_sector_t slot_no, void * page)
 {
-	void * p = palloc_get_page(PAL_USER | PAL_ZERO);
-
-	block_read(swap_device, slot_no, p);
+	block_read(swap_device, slot_no, page);
 
 	struct free_slot f;
 	f.next = free_list;
 
 	block_write(swap_device, slot_no, &f);
 	free_list = slot_no;
-
-	return p;
 }

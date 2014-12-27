@@ -41,12 +41,18 @@ mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr, si
 void
 page_add_to_executabe_segment(struct page * pte)
 {
+	page_add_entry(pte);
+}
+
+void
+page_add_entry(struct page * p)
+{
 	struct thread * t = thread_current();
-	hash_insert(&t->pages, &pte->h_elem);
+	hash_insert(&t->pages, &p->h_elem);
 }
 
 struct page *
-page_get_entry_for_vaddr(void * vaddr)
+page_get_entry_for_vaddr(const void * vaddr)
 {
 	void * page_bound = pg_round_down(vaddr);
 
