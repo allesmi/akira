@@ -5,30 +5,23 @@
 
 #include "vm/swap.h"
 #include "lib/kernel/list.h"
+#include "lib/kernel/hash.h"
 
 enum page_state
 {
 	FRAMED,
 	ON_DISK,
-	ON_SWAP
-};
-
-enum page_segment
-{
-	STACK,
-	EXECUTABLE,
+	ON_SWAP,
 	MMAPED_FILE
 };
 
-struct page_table_segment
+struct page_table
 {
-	void * start;		/* Start address of this segment */
-	int size;		/* Number of pages for this segment (may grow) */
-
-	struct list page_list;
+	struct hash pages;
 };
 
-struct page_table_entry
+
+struct page
 {
 	void * vaddr;
 	int size;
@@ -38,13 +31,18 @@ struct page_table_entry
 	int f_offset;
 	bool writable;
 
-	struct list_elem elem;			/* List element */
+	struct list_elem l_elem;			/* List element */
+	struct hash_elem h_elem;			/* List element */
 };
 
 void page_init(void);
-void page_add_to_executabe_segment(struct page_table_entry * pte);
-struct page_table_entry * page_get_entry_for_vaddr(void * vaddr);
-void mmfile_add_to_page_table (struct file * f, int ofs, int size, void * addr,
-	size_t page_read_bytes, size_t page_zero_bytes);
+
+void page_add_to_executabe_segment(struct page * pte);
+struct page * page_get_entry_for_vaddr(void * vaddr);
+void mmfile_add_to_page_table (struct file * f, int ofs, int size, void * addr, size_t page_read_bytes);
+
+unsigned page_hash(const struct hash_elem *e, void * aux);
+bool page_less(const struct hash_elem *a, const struct hash_elem *b, void *aux);
+
 
 #endif

@@ -104,6 +104,10 @@ start_process (void *process_data_)
   char *file_name = pd->file_name;
   struct intr_frame if_;
   bool success;
+  struct thread * t = thread_current();
+
+  /* Initialize supplemental page table */
+  hash_init(&t->pages, page_hash, page_less, NULL);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -111,9 +115,6 @@ start_process (void *process_data_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-
-
-  struct thread * t = thread_current();
 
   t->parent = pd->parent;
 
@@ -583,7 +584,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
       
-      struct page_table_entry * pte = palloc_get_page(0);
+      struct page * pte = palloc_get_page(0);
 
       pte->vaddr = upage;
       pte->size = page_read_bytes;
