@@ -41,5 +41,5 @@ evict_next_frame(void)
 static bool
 frames_available(void)
 {
-	true;
+	return true;
 }
