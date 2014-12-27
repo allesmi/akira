@@ -591,8 +591,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       pte->state = ON_DISK;
       pte->f = file;
       pte->f_offset = ofs + (upage - initial);
+      pte->writable = writable;
 
       page_add_to_executabe_segment(pte);
+      if(debug)
+        printf("Added to PT %p+%d\n", pte->vaddr, pte->size);
 
 
       // /* Get a page of memory. */
@@ -638,7 +641,7 @@ setup_stack (void **esp)
       success = install_page (sb, kpage, true);
       struct thread * t = thread_current();
       t->stack_bound = sb;
-      
+
       if (success)
         *esp = PHYS_BASE;
       else
