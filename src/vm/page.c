@@ -27,6 +27,22 @@ page_init(void)
 }
 
 void
+mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr,
+	size_t page_read_bytes, size_t page_zero_bytes)
+{
+		struct page_table_entry * pte = malloc(sizeof(struct page_table_entry));
+
+		pte->vaddr = addr;
+		pte->size = size;
+		pte->state = MMAPED_FILE;
+		pte->f = file;
+		pte->f_offset = ofs;
+		pte->writable = true;
+
+		page_add_to_executabe_segment(pte);
+}
+
+void
 page_add_to_executabe_segment(struct page_table_entry * pte)
 {
 	printf("Added to executable segment: %p+%d\n", pte->vaddr, pte->size);

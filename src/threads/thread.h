@@ -17,6 +17,8 @@
 typedef int tid_t;
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
 
+typedef int mapid_t;
+
 /* Thread priorities. */
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
@@ -49,6 +51,13 @@ struct child_data
   struct semaphore alive;   /* A semaphore to signal child process termination */
   int return_value;         /* The return value of the child */
   struct list_elem elem;    /* List element */
+};
+
+struct mapped_file
+{
+  mapid_t mapping;
+  
+  struct list_elem elem;
 };
 
 
@@ -138,6 +147,8 @@ struct thread
     struct list children;               /* A list of children */
     struct file * executable;           /* The threads executable */
     int return_value;                   /* Return value for parent */
+    struct list mappedfiles;            /* A list of memory mapped files*/
+    mapid_t mapid;
 #endif
 
     /* Owned by thread.c. */

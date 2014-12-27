@@ -14,9 +14,12 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"
 #include "devices/input.h"
+#include "vm/page.h"
 
 static void syscall_handler (struct intr_frame *);
 static void sys_halt (void);
+mapid_t mmap (int fd, void *addr);
+void munmap (mapid_t mapping);
 struct thread_file * get_thread_file (int fd);
 
 struct lock syscall_lock;	/* A lock for system calls */
@@ -347,6 +350,34 @@ syscall_handler (struct intr_frame *f)
 
 			break;
 		}
+		case SYS_MMAP:
+		{
+			if(!is_valid_user_pointer((int *) f->esp + 1))
+				userprog_fail (f);
+			int fd = *((int *)f->esp + 1);
+
+			if(!is_valid_user_pointer((void **) f->esp + 2))
+				userprog_fail (f);
+			void * addr = *((void **)f->esp + 2);
+
+			if(!is_valid_user_pointer (addr) || ((uint32_t) addr % PGSIZE) != 0)
+				userprog_fail (f);
+
+			f->eax = mmap(f, addr);
+
+			break;
+		}
+		case SYS_MUNMAP:
+		{
+			if(!is_valid_user_pointer((int *) f->esp + 1))
+				userprog_fail (f);
+
+			mapid_t mapping = *((int *)f->esp + 1);
+			munmap(mapping);
+
+
+			break;
+		}
 	}
 }
 
@@ -384,3 +415,32 @@ thread_file * get_thread_file (int fd)
 
 	return NULL;
 }
+
+mapid_t 
+mmap (int fd, void *addr)
+{
+	struct thread_file * current_tf = get_thread_file (fd);
+	struct file * file = current_tf->fdfile;
+
+
+	int ofs = 0;
+	int read_bytes = file_length(file);
+
+	size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+
+	struct mapped_file *mmfile = malloc(sizeof(struct mapped_file));
+
+	mmfile->mapping = thread_current()->mapid;
+	thread_current()->mapid++;
+	list_push_back(&thread_current()->mappedfiles, &mmfile->elem);
+
+	return mmfile->mapping;
+
+}
+
+void 
+munmap (mapid_t mapping)
+{
+
+}
+

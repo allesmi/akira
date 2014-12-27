@@ -36,7 +36,7 @@ struct page_table_entry
 	block_sector_t swap_slot;		/* When state is ON_SWAP */
 	struct file * f;				/* When state is ON_FILE */
 	int f_offset;
-
+	bool writable;
 
 	struct list_elem elem;			/* List element */
 };
@@ -44,5 +44,7 @@ struct page_table_entry
 void page_init(void);
 void page_add_to_executabe_segment(struct page_table_entry * pte);
 struct page_table_entry * page_get_entry_for_vaddr(void * vaddr);
+void mmfile_add_to_page_table (struct file * f, int ofs, int size, void * addr,
+	size_t page_read_bytes, size_t page_zero_bytes);
 
 #endif
