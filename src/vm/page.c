@@ -15,8 +15,14 @@ page_init(void)
 void
 page_add_to_executabe_segment(struct page * pte)
 {
+	page_add_entry(pte);
+}
+
+void
+page_add_entry(struct page * p)
+{
 	struct thread * t = thread_current();
-	hash_insert(&t->pages, &pte->h_elem);
+	hash_insert(&t->pages, &p->h_elem);
 }
 
 struct page *

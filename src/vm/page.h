@@ -36,6 +36,7 @@ struct page
 
 void page_init(void);
 void page_add_to_executabe_segment(struct page * pte);
+void page_add_entry(struct page * p);
 struct page * page_get_entry_for_vaddr(void * vaddr);
 
 unsigned page_hash(const struct hash_elem *e, void * aux);

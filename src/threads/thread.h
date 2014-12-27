@@ -141,6 +141,7 @@ struct thread
     int return_value;                   /* Return value for parent */
 
     struct hash pages;
+    void * stack_bound;
 #endif
 
     /* Owned by thread.c. */

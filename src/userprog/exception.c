@@ -6,10 +6,12 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "threads/interrupt.h"
+#include "threads/malloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "vm/frame.h"
 #include "vm/page.h"
+#include "vm/swap.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -17,6 +19,7 @@ static long long page_fault_cnt;
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
 static bool install_page (void *upage, void *kpage, bool writable);
+static bool swap_in_page(struct page * p);
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -160,29 +163,27 @@ page_fault (struct intr_frame *f)
   {
     struct page * p = page_get_entry_for_vaddr(fault_addr);
 
-    if(p != NULL && p->state == ON_DISK)
+    if(p == NULL)
     {
-      /* Get a page of memory. */
-      uint8_t *kpage = frame_alloc();
-      if (kpage == NULL)
-        kill(f);
+      struct thread * t = thread_current();
 
-      /* Load this page. */
-      int read_bytes = file_read_at (p->f, kpage, p->size, p->f_offset);
-
-      if (read_bytes != p->size)
+      /* Assumption: When an address faults one eigth of a page below the 
+      current stack pointer, then the stack needs a page to grow. */
+      if(fault_addr > t->stack_bound - PGSIZE/8)
       {
-        frame_free(kpage); //palloc_free_page (kpage);
-        kill(f); 
-      }
-      memset (kpage + p->size, 0, PGSIZE - p->size);
+        t->stack_bound = t->stack_bound - PGSIZE;
 
-      /* Add the page to the process's address space. */
-      if (!install_page (p->vaddr, kpage, true))
-      {
-        frame_free(kpage); //palloc_free_page (kpage);
-        kill(f); 
+        struct page * p = (struct page *)malloc(sizeof(struct page));
+        if(p != NULL)
+        {
+          p->vaddr = t->stack_bound;
+          p->size = PGSIZE;
+        }
       }
+    }
+    else if(p != NULL && p->state == ON_DISK)
+    {
+      swap_in_page(p);
     }
 
     return;
@@ -225,3 +226,39 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
+static bool
+swap_in_page(struct page * p)
+{
+      /* Get a page of memory. */
+      uint8_t *kpage = frame_alloc();
+      if (kpage == NULL)
+        return false;
+
+      if(p->state == ON_DISK)
+      {
+        /* Load this page. */
+        int read_bytes = file_read_at (p->f, kpage, p->size, p->f_offset);
+
+        if (read_bytes != p->size)
+        {
+          frame_free(kpage); //palloc_free_page (kpage);
+          return false;
+        }
+        memset (kpage + p->size, 0, PGSIZE - p->size);
+      }
+      else if (p->state == ON_SWAP)
+      {
+        swap_retrieve(p->swap_slot, kpage);
+      }
+
+      p->state = FRAMED;
+
+      /* Add the page to the process's address space. */
+      if (!install_page (p->vaddr, kpage, true))
+      {
+        frame_free(kpage); //palloc_free_page (kpage);
+        return false;
+      }
+
+      return true;
+}

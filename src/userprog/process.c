@@ -634,7 +634,11 @@ setup_stack (void **esp)
   kpage = frame_alloc(); //palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      uint8_t * sb = ((uint8_t *) PHYS_BASE) - PGSIZE;
+      success = install_page (sb, kpage, true);
+      struct thread * t = thread_current();
+      t->stack_bound = sb;
+      
       if (success)
         *esp = PHYS_BASE;
       else
