@@ -647,6 +647,11 @@ setup_stack (void **esp)
         *esp = PHYS_BASE;
       else
         frame_free(kpage); //palloc_free_page (kpage);
+      struct page * p = (struct page *)malloc(sizeof(struct page));
+      p->vaddr = sb;
+      p->size = PGSIZE;
+      p->state = FRAMED;
+      page_add_entry(p);
     }
   return success;
 }

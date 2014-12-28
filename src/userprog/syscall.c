@@ -34,9 +34,7 @@ syscall_init (void)
 static bool
 is_valid_user_pointer (const void * charlie)
 {
-	return is_user_vaddr (charlie) &&
-		(pagedir_get_page (thread_current()->pagedir, charlie) != NULL ||
-			page_get_entry_for_vaddr(charlie) != NULL);
+	return is_user_vaddr (charlie) && page_get_entry_for_vaddr(charlie) != NULL;
 }
 
 static bool
@@ -233,7 +231,6 @@ syscall_handler (struct intr_frame *f)
 			if(!is_valid_user_pointer_range(buf, size))
 				userprog_fail(f);
 
-			// printf("\tread(fd=%d, buf=%x, size=%d)\n", fd, buf, size);
 
 			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);

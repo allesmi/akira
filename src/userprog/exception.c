@@ -159,25 +159,26 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if(user)
+  struct page * p = page_get_entry_for_vaddr(fault_addr);
+
+  if(user || p != NULL)
   {
-    struct page * p = page_get_entry_for_vaddr(fault_addr);
 
     if(p == NULL)
     {
       struct thread * t = thread_current();
 
       /* Assumption: When an address faults one eigth of a page below the 
-      current stack pointer, then the stack needs a page to grow. */
+      current stack bound, then the stack needs a page to grow. */
       if(fault_addr > t->stack_bound - PGSIZE/8)
       {
-        t->stack_bound = t->stack_bound - PGSIZE;
-
         struct page * p = (struct page *)malloc(sizeof(struct page));
         if(p != NULL)
         {
+          t->stack_bound = t->stack_bound - PGSIZE;
           p->vaddr = t->stack_bound;
           p->size = PGSIZE;
+          p->writable = true;
         }
       }
     }
@@ -255,7 +256,7 @@ swap_in_page(struct page * p)
       p->state = FRAMED;
 
       /* Add the page to the process's address space. */
-      if (!install_page (p->vaddr, kpage, true))
+      if (!install_page (p->vaddr, kpage, p->writable))
       {
         frame_free(kpage); //palloc_free_page (kpage);
         return false;
