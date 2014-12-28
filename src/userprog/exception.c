@@ -18,6 +18,7 @@ static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
+static void page_fault_fail(struct intr_frame * f, void * fault_addr);
 static bool install_page (void *upage, void *kpage, bool writable);
 static bool swap_in_page(struct page * p);
 
@@ -194,20 +195,33 @@ page_fault (struct intr_frame *f)
       }
       else if(p != NULL)
       {
+        if(write && !p->writable)
+        {
+          page_fault_fail(f, fault_addr);
+          return;
+        }
+
         swap_in_page(p);
         return;
       }
     }
   }
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
+  page_fault_fail(f, fault_addr);
+}
+
+static void
+page_fault_fail(struct intr_frame * f, void * fault_addr)
+{
+  bool not_present = (f->error_code & PF_P) == 0;
+  bool write = (f->error_code & PF_W) != 0;
+  bool user = (f->error_code & PF_U) != 0;
+
   printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
+        fault_addr,
+        not_present ? "not present" : "rights violation",
+        write ? "writing" : "reading",
+        user ? "user" : "kernel");
 
   f->eip = (void *)f->eax;
   f->eax = 0xffffffff;
