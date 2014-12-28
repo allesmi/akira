@@ -486,7 +486,18 @@ munmap (mapid_t mapping)
 		struct mapped_file * mmfile = list_entry (e, struct mapped_file, elem);
 		if (mmfile->mapping == mapping)
 		{
+			int size = mmfile->size;
+			void * addr = mmfile->start_addr;
+			while (size > 0)
+			{
+				
+				struct page * p = page_get_entry_for_vaddr(addr);
+				page_destroy (p);
 
+				int page_read_bytes = size < PGSIZE ? size : PGSIZE;
+				size -= page_read_bytes;
+				addr += PGSIZE;
+			}
 		}
 	}
 }

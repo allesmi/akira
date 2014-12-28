@@ -13,8 +13,6 @@ page_init(void)
 
 }
 
-<<<<<<< HEAD
-
 void
 page_add_to_executabe_segment(struct page * pte)
 {
