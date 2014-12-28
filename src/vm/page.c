@@ -98,5 +98,7 @@ void
 page_destroy(struct hash_elem *e, void* aux UNUSED)
 {
 	struct page * p = hash_entry(e, struct page, h_elem);
+	if(debug)
+		printf("Freeing page at %p+%d\n", p->vaddr, p->size);
 	free(p);
 }
