@@ -163,7 +163,6 @@ page_fault (struct intr_frame *f)
 
   if(user || p != NULL)
   {
-
     if(p == NULL)
     {
       struct thread * t = thread_current();
@@ -172,22 +171,31 @@ page_fault (struct intr_frame *f)
       current stack bound, then the stack needs a page to grow. */
       if(fault_addr > t->stack_bound - PGSIZE/8)
       {
-        struct page * p = (struct page *)malloc(sizeof(struct page));
-        if(p != NULL)
+        uint8_t * kpage = frame_alloc();
+        if(kpage != NULL)
         {
           t->stack_bound = t->stack_bound - PGSIZE;
-          p->vaddr = t->stack_bound;
-          p->size = PGSIZE;
-          p->writable = true;
+          if(!install_page(t->stack_bound, kpage, true))
+            frame_free(kpage);
+          struct page * p = (struct page *)malloc(sizeof(struct page));
+          if(p != NULL)
+          {
+            p->vaddr = t->stack_bound;
+            p->size = PGSIZE;
+            p->state = FRAMED;
+            p->writable = true;
+            page_add_entry(p);
+
+            return;
+          }
         }
       }
     }
     else if(p != NULL && p->state == ON_DISK)
     {
       swap_in_page(p);
+      return;
     }
-
-    return;
   }
 
   /* To implement virtual memory, delete the rest of the function
