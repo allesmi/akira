@@ -151,7 +151,7 @@ struct thread
     int return_value;                   /* Return value for parent */
 
     struct list mappedfiles;            /* A list of memory mapped files*/
-    mapid_t mapid;
+    mapid_t mapid;                      /* Last used # for mm files */
 
     struct hash pages;
     void * stack_bound;

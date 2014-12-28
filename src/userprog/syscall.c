@@ -353,24 +353,42 @@ syscall_handler (struct intr_frame *f)
 		case SYS_MMAP:
 		{
 			if(!is_valid_user_pointer((int *) f->esp + 1))
-				userprog_fail (f);
+			{
+				f->eax = -1;
+				break;
+			}
+				
+
 			int fd = *((int *)f->esp + 1);
 
 			if(!is_valid_user_pointer((void **) f->esp + 2))
-				userprog_fail (f);
+			{
+				f->eax = -1;
+				break;
+			}
+
 			void * addr = *((void **)f->esp + 2);
 
 			if(!is_valid_user_pointer (addr) || ((uint32_t) addr % PGSIZE) != 0)
-				userprog_fail (f);
+			{
+				f->eax = -1;
+				break;
+			}
 
 			f->eax = mmap(f, addr);
+
+			if (f->eax != -1)
+				thread_current()->mapid++;
 
 			break;
 		}
 		case SYS_MUNMAP:
 		{
 			if(!is_valid_user_pointer((int *) f->esp + 1))
-				userprog_fail (f);
+			{
+				f->eax = -1;
+				break;
+			}
 
 			mapid_t mapping = *((int *)f->esp + 1);
 			munmap(mapping);
@@ -419,21 +437,33 @@ mapid_t
 mmap (int fd, void *addr)
 {
 	struct thread_file * current_tf = get_thread_file (fd);
+
+	if (addr == NULL || !is_valid_user_pointer (addr))
+		return -1;
+
+	if (current_tf == NULL || current_tf->fdfile == NULL ||
+		!is_valid_user_pointer(current_tf->fdfile))
+		return -1;
+	
+
 	struct file * f = current_tf->fdfile;
+	struct file * reopen_file = file_reopen (f);
+
+	if (reopen_file == NULL || file_length (reopen_file) == 0)
+		return -1;
 
 	int offset = 0;
-	int read_bytes = file_length(f);
+	int read_bytes = file_length(reopen_file);
 	
 	
 	while (read_bytes > 0)
 	{
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 
-		if (!mmfile_add_to_page_table (f, offset, read_bytes, addr, page_read_bytes))
+		if (!mmfile_add_to_page_table (reopen_file, offset, read_bytes, addr, page_read_bytes))
 		{
 			return -1;
 		}
-
 
 		read_bytes -= page_read_bytes;
 		offset += page_read_bytes;
@@ -451,6 +481,19 @@ munmap (mapid_t mapping)
 
 void remove_mmap (mapid_t mapping, bool all)
 {
+	struct thread * t = thread_current ();
+	struct list_elem *e;
 
+	for (e = list_begin (&t->mappedfiles); e != list_end (&t->mappedfiles);
+		 e = list_next (e))
+	{
+		struct mapped_file * mmfile = list_entry (e, struct mapped_file, elem);
+
+		if (mmfile->mapping == mapping || all == true)
+		{
+			
+		}
+	}
+	
 }
 
