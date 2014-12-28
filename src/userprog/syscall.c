@@ -379,7 +379,6 @@ syscall_handler (struct intr_frame *f)
 
 			if (f->eax != -1)
 				thread_current()->mapid++;
-
 			break;
 		}
 		case SYS_MUNMAP:
@@ -461,7 +460,7 @@ mmap (int fd, void *addr)
 
 		read_bytes -= page_read_bytes;
 		offset += page_read_bytes;
-		addr += PGSIZE;	
+		addr += PGSIZE;
 	}
 
 	return thread_current()->mapid;
@@ -470,7 +469,6 @@ mmap (int fd, void *addr)
 void 
 munmap (mapid_t mapping)
 {
-	printf("anfang");
 	struct thread * t = thread_current ();
 	struct list_elem *e;
 
@@ -478,7 +476,6 @@ munmap (mapid_t mapping)
 		 e = list_next (e))
 	{
 		struct mapped_file * mmfile = list_entry (e, struct mapped_file, elem);
-
 		if (mmfile->mapping == mapping)
 		{
 			if (pagedir_is_dirty (t->pagedir ,mmfile->p->vaddr))
@@ -495,6 +492,4 @@ munmap (mapid_t mapping)
 			free (mmfile);
 		}
 	}
-
-	printf("ende");
 }

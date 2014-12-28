@@ -20,7 +20,7 @@ mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr, si
 
 	pte->vaddr = addr;
 	pte->size = size;
-	pte->state = MMAPED_FILE;
+	pte->state = ON_DISK;
 	pte->f = file;
 	pte->f_offset = ofs;
 	pte->writable = true;
@@ -53,10 +53,7 @@ page_add_entry(struct page * p)
 	if(debug)
 		printf("Added to page table: %p+%d\n", p->vaddr, p->size);
 	struct thread * t = thread_current();
-	if (hash_insert(&t->pages, &p->h_elem))
-		return true;
-	else
-		return false;
+	return hash_insert(&t->pages, &p->h_elem) == NULL;
 }
 
 void
@@ -105,6 +102,9 @@ void
 page_destroy(struct hash_elem *e, void* aux UNUSED)
 {
 	struct page * p = hash_entry(e, struct page, h_elem);
+
+	// TODO: Write back to file
+	
 	if(debug)
 		printf("Freeing page at %p+%d\n", p->vaddr, p->size);
 	free(p);
