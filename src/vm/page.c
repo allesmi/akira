@@ -41,12 +41,6 @@ mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr, si
 
 }
 
-void
-page_add_to_executabe_segment(struct page * pte)
-{
-	page_add_entry(pte);
-}
-
 bool
 page_add_entry(struct page * p)
 {
@@ -104,7 +98,7 @@ page_destroy(struct hash_elem *e, void* aux UNUSED)
 	struct page * p = hash_entry(e, struct page, h_elem);
 
 	// TODO: Write back to file
-	
+
 	if(debug)
 		printf("Freeing page at %p+%d\n", p->vaddr, p->size);
 	free(p);
