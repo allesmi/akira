@@ -369,7 +369,7 @@ syscall_handler (struct intr_frame *f)
 
 			void * addr = *((void **)f->esp + 2);
 
-			if(!is_valid_user_pointer (addr) || ((uint32_t) addr % PGSIZE) != 0)
+			if(((uint32_t) addr % PGSIZE) != 0)
 			{
 				f->eax = -1;
 				break;
@@ -383,7 +383,7 @@ syscall_handler (struct intr_frame *f)
 			break;
 		}
 		case SYS_MUNMAP:
-		{
+		{                                
 			if(!is_valid_user_pointer((int *) f->esp + 1))
 			{
 				f->eax = -1;
@@ -438,11 +438,8 @@ mmap (int fd, void *addr)
 {
 	struct thread_file * current_tf = get_thread_file (fd);
 
-	if (addr == NULL || !is_valid_user_pointer (addr))
-		return -1;
-
 	if (current_tf == NULL || current_tf->fdfile == NULL ||
-		!is_valid_user_pointer(current_tf->fdfile))
+		!is_valid_user_pointer(current_tf->fdfile) || addr == NULL)
 		return -1;
 	
 
@@ -491,7 +488,14 @@ void remove_mmap (mapid_t mapping, bool all)
 
 		if (mmfile->mapping == mapping || all == true)
 		{
-			
+			if (pagedir_is_dirty (t->pagedir ,mmfile->p->vaddr))
+			{
+				file_write_at (mmfile->p->f, mmfile->p->vaddr, 
+					mmfile->p->size, mmfile->p->f_offset);
+			}	
+
+			frame_free(pagedir_get_page(t->pagedir, mmfile->p->vaddr));
+			pagedir_clear_page(t->pagedir, mmfile->p->vaddr);	
 		}
 	}
 	

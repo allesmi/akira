@@ -38,8 +38,10 @@ struct page
 void page_init(void);
 
 void page_add_to_executabe_segment(struct page * pte);
-void page_add_entry(struct page * p);
+bool page_add_entry(struct page * p);
 void page_delete_entry (struct page * p);
+void page_table_delete_func (struct hash_elem *e, void *aux);
+void page_table_delete (struct hash * pages);
 struct page * page_get_entry_for_vaddr(const void * vaddr);
 bool mmfile_add_to_page_table (struct file * f, int ofs, int size, void * addr, size_t page_read_bytes);
 

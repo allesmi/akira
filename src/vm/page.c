@@ -25,15 +25,21 @@ mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr, si
 		pte->f_offset = ofs;
 		pte->writable = true;
 
-		page_add_to_executabe_segment(pte);
+		printf("test...................");
 
-		struct mapped_file *mmfile = malloc(sizeof(struct mapped_file));
+		if (page_add_entry(pte) == true)
+		{
+			struct mapped_file *mmfile = malloc(sizeof(struct mapped_file));
 
-		mmfile->mapping = thread_current()->mapid;
-		mmfile->p = pte;
-		list_push_back(&thread_current()->mappedfiles, &mmfile->elem);
+			mmfile->mapping = thread_current()->mapid;
+			mmfile->p = pte;
+			list_push_back(&thread_current()->mappedfiles, &mmfile->elem);	
+			return true;
+		}
 
-		return true;
+		free(pte);
+
+		return false;
 
 }
 
@@ -43,11 +49,25 @@ page_add_to_executabe_segment(struct page * pte)
 	page_add_entry(pte);
 }
 
-void
+bool
 page_add_entry(struct page * p)
 {
 	struct thread * t = thread_current();
-	hash_insert(&t->pages, &p->h_elem);
+	if (hash_insert(&t->pages, &p->h_elem))
+		return true;
+	else
+		return false;
+}
+
+void 
+page_table_delete_func (struct hash_elem *e, void *aux)
+{
+
+}
+
+void page_table_delete (struct hash * pages)
+{
+	hash_destroy (pages, page_table_delete_func);
 }
 
 void
