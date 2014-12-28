@@ -25,8 +25,6 @@ mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr, si
 		pte->f_offset = ofs;
 		pte->writable = true;
 
-		printf("test...................");
-
 		if (page_add_entry(pte) == true)
 		{
 			struct mapped_file *mmfile = malloc(sizeof(struct mapped_file));
@@ -62,7 +60,7 @@ page_add_entry(struct page * p)
 }
 
 void 
-page_table_delete_func (struct hash_elem *e, void *aux)
+page_table_delete_func (struct hash_elem *e, void *aux UNUSED)
 {
 
 }

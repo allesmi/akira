@@ -357,9 +357,8 @@ syscall_handler (struct intr_frame *f)
 				f->eax = -1;
 				break;
 			}
-				
 
-			int fd = *((int *)f->esp + 1);
+			int fd = *((int *) f->esp + 1);;
 
 			if(!is_valid_user_pointer((void **) f->esp + 2))
 			{
@@ -369,13 +368,13 @@ syscall_handler (struct intr_frame *f)
 
 			void * addr = *((void **)f->esp + 2);
 
-			if(((uint32_t) addr % PGSIZE) != 0)
+			if(((uint32_t) addr % PGSIZE) != 0 || addr == NULL)
 			{
 				f->eax = -1;
 				break;
 			}
 
-			f->eax = mmap(f, addr);
+			f->eax = mmap(fd, addr);
 
 			if (f->eax != -1)
 				thread_current()->mapid++;
@@ -438,10 +437,8 @@ mmap (int fd, void *addr)
 {
 	struct thread_file * current_tf = get_thread_file (fd);
 
-	if (current_tf == NULL || current_tf->fdfile == NULL ||
-		!is_valid_user_pointer(current_tf->fdfile) || addr == NULL)
+	if (current_tf == NULL || current_tf->fdfile == NULL )
 		return -1;
-	
 
 	struct file * f = current_tf->fdfile;
 	struct file * reopen_file = file_reopen (f);
@@ -451,8 +448,7 @@ mmap (int fd, void *addr)
 
 	int offset = 0;
 	int read_bytes = file_length(reopen_file);
-	
-	
+
 	while (read_bytes > 0)
 	{
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
@@ -495,7 +491,11 @@ void remove_mmap (mapid_t mapping, bool all)
 			}	
 
 			frame_free(pagedir_get_page(t->pagedir, mmfile->p->vaddr));
-			pagedir_clear_page(t->pagedir, mmfile->p->vaddr);	
+			pagedir_clear_page(t->pagedir, mmfile->p->vaddr);	\
+
+			list_remove (&mmfile->elem);
+			free (mmfile->p);
+			free (mmfile);
 		}
 	}
 	
