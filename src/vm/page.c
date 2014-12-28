@@ -59,17 +59,6 @@ page_add_entry(struct page * p)
 		return false;
 }
 
-void 
-page_table_delete_func (struct hash_elem *e, void *aux UNUSED)
-{
-
-}
-
-void page_table_delete (struct hash * pages)
-{
-	hash_destroy (pages, page_table_delete_func);
-}
-
 void
 page_delete_entry (struct page * p)
 {
