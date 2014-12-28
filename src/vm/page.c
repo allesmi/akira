@@ -13,34 +13,6 @@ page_init(void)
 
 }
 
-bool
-mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr, size_t page_read_bytes)
-{
-	struct page * pte = malloc(sizeof(struct page));
-
-	pte->vaddr = addr;
-	pte->size = size;
-	pte->state = MMAPED_FILE;
-	pte->f = file;
-	pte->f_offset = ofs;
-	pte->writable = true;
-
-	if (page_add_entry(pte) == true)
-	{
-		struct mapped_file *mmfile = malloc(sizeof(struct mapped_file));
-
-		mmfile->mapping = thread_current()->mapid;
-		mmfile->p = pte;
-		list_push_back(&thread_current()->mappedfiles, &mmfile->elem);	
-		return true;
-	}
-
-	free(pte);
-
-	return false;
-
-}
-
 void
 page_add_to_executabe_segment(struct page * pte)
 {
@@ -53,7 +25,7 @@ page_add_entry(struct page * p)
 	if(debug)
 		printf("Added to page table: %p+%d\n", p->vaddr, p->size);
 	struct thread * t = thread_current();
-	if (hash_insert(&t->pages, &p->h_elem))
+	if (hash_insert(&t->pages, &p->h_elem) == NULL)
 		return true;
 	else
 		return false;

@@ -42,7 +42,6 @@ bool page_add_entry(struct page * p);
 void page_delete_entry (struct page * p);
 
 struct page * page_get_entry_for_vaddr(const void * vaddr);
-bool mmfile_add_to_page_table (struct file * f, int ofs, int size, void * addr, size_t page_read_bytes);
 
 unsigned page_hash(const struct hash_elem *e, void * aux);
 bool page_less(const struct hash_elem *a, const struct hash_elem *b, void *aux);

@@ -58,7 +58,8 @@ struct child_data
 struct mapped_file
 {
   mapid_t mapping;
-  struct page * p;
+  void *start_addr;
+  int size;
   struct list_elem elem;
 };
 

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <syscall-nr.h>
 #include <user/syscall.h>
+#include "lib/kernel/list.h"
 #include "devices/shutdown.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -15,10 +16,10 @@
 #include "threads/synch.h"
 #include "devices/input.h"
 #include "vm/page.h"
-#include "vm/frame.h"
 
 static void syscall_handler (struct intr_frame *);
 static void sys_halt (void);
+bool mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr);
 mapid_t mmap (int fd, void *addr);
 void munmap (mapid_t mapping);
 struct thread_file * get_thread_file (int fd);
@@ -353,7 +354,7 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_MMAP:
 		{
-			if(!is_valid_user_pointer((int *) f->esp + 1))
+			if (!is_valid_user_pointer ((int *) f->esp + 1))
 			{
 				f->eax = -1;
 				break;
@@ -361,7 +362,7 @@ syscall_handler (struct intr_frame *f)
 
 			int fd = *((int *) f->esp + 1);;
 
-			if(!is_valid_user_pointer((void **) f->esp + 2))
+			if (!is_valid_user_pointer ((void **) f->esp + 2))
 			{
 				f->eax = -1;
 				break;
@@ -369,7 +370,7 @@ syscall_handler (struct intr_frame *f)
 
 			void * addr = *((void **)f->esp + 2);
 
-			if(((uint32_t) addr % PGSIZE) != 0 || addr == NULL)
+			if( addr == NULL || ((uint32_t) addr % PGSIZE) != 0)
 			{
 				f->eax = -1;
 				break;
@@ -450,12 +451,16 @@ mmap (int fd, void *addr)
 	int offset = 0;
 	int read_bytes = file_length(reopen_file);
 
+	struct mapped_file *mmfile = malloc (sizeof(struct mapped_file));
+	mmfile->start_addr = addr;
+
 	while (read_bytes > 0)
 	{
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 
-		if (!mmfile_add_to_page_table (reopen_file, offset, read_bytes, addr, page_read_bytes))
+		if (!mmfile_add_to_page_table (reopen_file, offset, read_bytes, addr))
 		{
+			free (mmfile);
 			return -1;
 		}
 
@@ -463,6 +468,9 @@ mmap (int fd, void *addr)
 		offset += page_read_bytes;
 		addr += PGSIZE;	
 	}
+
+	mmfile->mapping = thread_current()->mapid;
+	list_push_back (&thread_current()->mappedfiles, &mmfile->elem);	
 
 	return thread_current()->mapid;
 }
@@ -480,18 +488,30 @@ munmap (mapid_t mapping)
 
 		if (mmfile->mapping == mapping)
 		{
-			if (pagedir_is_dirty (t->pagedir ,mmfile->p->vaddr))
-			{
-				file_write_at (mmfile->p->f, mmfile->p->vaddr, 
-					mmfile->p->size, mmfile->p->f_offset);
-			}	
 
-			frame_free(pagedir_get_page(t->pagedir, mmfile->p->vaddr));
-			pagedir_clear_page(t->pagedir, mmfile->p->vaddr);	\
-
-			list_remove (&mmfile->elem);
-			free (mmfile->p);
-			free (mmfile);
 		}
 	}
+}
+
+bool
+mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr)
+{
+		struct page * pte = malloc(sizeof(struct page));
+
+		pte->vaddr = addr;
+		pte->size = size;
+		pte->state = MMAPED_FILE;
+		pte->f = file;
+		pte->f_offset = ofs;
+		pte->writable = true;
+
+		if (page_add_entry(pte) == true)
+		{
+			return true;
+		}
+		else
+		{
+			free(pte);
+			return false;	
+		}
 }
