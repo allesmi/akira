@@ -162,7 +162,6 @@ page_fault (struct intr_frame *f)
 
   if(fault_addr >= (void*)0x8048000 && fault_addr < PHYS_BASE)
   {
-    printf("test.............");
     struct page * p = page_get_entry_for_vaddr(fault_addr);
 
     if(user || p != NULL)
@@ -286,9 +285,6 @@ swap_in_page(struct page * p)
         frame_free(kpage); //palloc_free_page (kpage);
         return false;
       }
-
-      if(debug)
-        printf("Installed page %p at frame %p.\n", p->vaddr, kpage);
 
       return true;
 }
