@@ -15,6 +15,7 @@
 #include "threads/synch.h"
 #include "devices/input.h"
 #include "vm/page.h"
+#include "vm/frame.h"
 
 static void syscall_handler (struct intr_frame *);
 static void sys_halt (void);
@@ -469,11 +470,7 @@ mmap (int fd, void *addr)
 void 
 munmap (mapid_t mapping)
 {
-	remove_mmap (mapping, false);
-}
-
-void remove_mmap (mapid_t mapping, bool all)
-{
+	printf("anfang");
 	struct thread * t = thread_current ();
 	struct list_elem *e;
 
@@ -482,7 +479,7 @@ void remove_mmap (mapid_t mapping, bool all)
 	{
 		struct mapped_file * mmfile = list_entry (e, struct mapped_file, elem);
 
-		if (mmfile->mapping == mapping || all == true)
+		if (mmfile->mapping == mapping)
 		{
 			if (pagedir_is_dirty (t->pagedir ,mmfile->p->vaddr))
 			{
@@ -498,6 +495,6 @@ void remove_mmap (mapid_t mapping, bool all)
 			free (mmfile);
 		}
 	}
-	
-}
 
+	printf("ende");
+}
