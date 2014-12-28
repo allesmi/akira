@@ -93,7 +93,12 @@ page_hash_destroy(struct hash_elem *e, void* aux UNUSED)
 void
 page_destroy(struct page * p)
 {
-	// TODO: Write back to file
+	struct thread * t = thread_current();
+	
+	if (pagedir_is_dirty (t->pagedir, p->vaddr))
+	{
+		file_write_at (p->f, p->vaddr, p->size, p->f_offset);
+	}	
 
 	if(debug)
 		printf("Freeing page at %p+%d\n", p->vaddr, p->size);
