@@ -197,6 +197,10 @@ page_fault (struct intr_frame *f)
       {
         if(write && !p->writable)
         {
+          /* Let's pretend it was the user program's fault (ha ha!) */
+          f->cs = SEL_UCSEG;
+          f->error_code = f->error_code | PF_U;
+
           page_fault_fail(f, fault_addr);
           return;
         }
