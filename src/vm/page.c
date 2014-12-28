@@ -31,7 +31,6 @@ mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr, si
 
 		mmfile->mapping = thread_current()->mapid;
 		mmfile->p = pte;
-		thread_current()->mapid++;
 		list_push_back(&thread_current()->mappedfiles, &mmfile->elem);
 
 		return true;
@@ -49,6 +48,13 @@ page_add_entry(struct page * p)
 {
 	struct thread * t = thread_current();
 	hash_insert(&t->pages, &p->h_elem);
+}
+
+void
+page_delete_entry (struct page * p)
+{
+	struct thread * t = thread_current();
+	hash_delete (&t->pages, &p->h_elem);
 }
 
 struct page *

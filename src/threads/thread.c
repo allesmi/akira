@@ -690,7 +690,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->recent_cpu = 0;
   list_init(&t->children);
   list_init(&t->mappedfiles);
-  t->mapid = -1;
+  t->mapid = 0;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
