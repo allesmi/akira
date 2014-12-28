@@ -171,12 +171,10 @@ page_fault (struct intr_frame *f)
         current stack pointer, then the stack needs a page to grow. */
         if(fault_addr > f->esp - PGSIZE/8)
         {
-          uint8_t * kpage = frame_alloc();
-          if(kpage != NULL)
+          struct thread * t = thread_current();
+          uint8_t * sb = pg_round_down(fault_addr);
+          while(sb != t->stack_bound)
           {
-            uint8_t * sb = pg_round_down(fault_addr);
-            if(!install_page(sb, kpage, true))
-              frame_free(kpage);
             struct page * p = (struct page *)malloc(sizeof(struct page));
             if(p != NULL)
             {
@@ -185,13 +183,16 @@ page_fault (struct intr_frame *f)
               p->state = FRAMED;
               p->writable = true;
               page_add_entry(p);
-
-              return;
             }
+
+            sb += PGSIZE;
           }
+
+          t->stack_bound = pg_round_down(fault_addr);
+          return;
         }
       }
-      else if(p != NULL && p->state == ON_DISK)
+      else if(p != NULL)
       {
         swap_in_page(p);
         return;
@@ -270,6 +271,9 @@ swap_in_page(struct page * p)
         frame_free(kpage); //palloc_free_page (kpage);
         return false;
       }
+
+      if(debug)
+        printf("Installed page %p at frame %p.\n", p->vaddr, kpage);
 
       return true;
 }

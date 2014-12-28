@@ -12,7 +12,8 @@ enum page_state
 	FRAMED,
 	ON_DISK,
 	ON_SWAP,
-	MMAPED_FILE
+	MMAPED_FILE,
+	STACK
 };
 
 struct page_table

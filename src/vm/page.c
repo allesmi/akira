@@ -52,6 +52,8 @@ page_add_to_executabe_segment(struct page * pte)
 bool
 page_add_entry(struct page * p)
 {
+	if(debug)
+		printf("Added to page table: %p+%d\n", p->vaddr, p->size);
 	struct thread * t = thread_current();
 	if (hash_insert(&t->pages, &p->h_elem))
 		return true;

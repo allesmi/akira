@@ -600,9 +600,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       page_add_to_executabe_segment(pte);
 
-      if(debug)
-        printf("Added to PT %p+%d\n", pte->vaddr, pte->size);
-
       // /* Get a page of memory. */
       // uint8_t *kpage = frame_alloc(); //palloc_get_page (PAL_USER);
       // if (kpage == NULL)
@@ -643,18 +640,23 @@ setup_stack (void **esp)
   if (kpage != NULL) 
     {
       uint8_t * sb = ((uint8_t *) PHYS_BASE) - PGSIZE;
-      success = install_page (sb, kpage, true);
       struct thread * t = thread_current();
+
+      success = install_page (sb, kpage, true);
 
       if (success)
         *esp = PHYS_BASE;
       else
         frame_free(kpage); //palloc_free_page (kpage);
       struct page * p = (struct page *)malloc(sizeof(struct page));
-      p->vaddr = sb;
-      p->size = PGSIZE;
-      p->state = FRAMED;
-      page_add_entry(p);
+      if(p != NULL)
+      {
+        p->vaddr = sb;
+        p->size = PGSIZE;
+        p->state = FRAMED;
+        page_add_entry(p);
+        t->stack_bound = sb;
+      }
     }
   return success;
 }
