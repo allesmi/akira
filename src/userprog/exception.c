@@ -165,22 +165,20 @@ page_fault (struct intr_frame *f)
   {
     if(p == NULL)
     {
-      struct thread * t = thread_current();
-
       /* Assumption: When an address faults one eigth of a page below the 
-      current stack bound, then the stack needs a page to grow. */
-      if(fault_addr > t->stack_bound - PGSIZE/8)
+      current stack pointer, then the stack needs a page to grow. */
+      if(fault_addr > f->esp - PGSIZE/8)
       {
         uint8_t * kpage = frame_alloc();
         if(kpage != NULL)
         {
-          t->stack_bound = t->stack_bound - PGSIZE;
-          if(!install_page(t->stack_bound, kpage, true))
+          uint8_t * sb = pg_round_down(fault_addr);
+          if(!install_page(sb, kpage, true))
             frame_free(kpage);
           struct page * p = (struct page *)malloc(sizeof(struct page));
           if(p != NULL)
           {
-            p->vaddr = t->stack_bound;
+            p->vaddr = sb;
             p->size = PGSIZE;
             p->state = FRAMED;
             p->writable = true;

@@ -641,7 +641,6 @@ setup_stack (void **esp)
       uint8_t * sb = ((uint8_t *) PHYS_BASE) - PGSIZE;
       success = install_page (sb, kpage, true);
       struct thread * t = thread_current();
-      t->stack_bound = sb;
 
       if (success)
         *esp = PHYS_BASE;
