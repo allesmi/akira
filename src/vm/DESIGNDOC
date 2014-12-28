@@ -34,6 +34,8 @@ Alexander Miller <alles.mil@gmail.com>
 >> A2: In a few paragraphs, describe your code for locating the frame,
 >> if any, that contains the data of a given page.
 
+We are using a hash map to find pages via their virtual address. Addresses are round down to page boundaries and used as search keys.
+
 >> A3: How does your code coordinate accessed and dirty bits between
 >> kernel and user virtual addresses that alias a single frame, or
 >> alternatively how do you avoid the issue?
@@ -69,6 +71,8 @@ Alexander Miller <alles.mil@gmail.com>
 >> B4: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
+
+When the page fault occurs 512 bytes below the current stack pointer we decide to extend the stack segment until that page.
 
 ---- SYNCHRONIZATION ----
 

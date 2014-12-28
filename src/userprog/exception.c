@@ -286,8 +286,5 @@ swap_in_page(struct page * p)
         return false;
       }
 
-      if(debug)
-        printf("Installed page %p at frame %p.\n", p->vaddr, kpage);
-
       return true;
 }

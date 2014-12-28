@@ -380,7 +380,6 @@ syscall_handler (struct intr_frame *f)
 
 			if (f->eax != -1)
 				thread_current()->mapid++;
-
 			break;
 		}
 		case SYS_MUNMAP:
@@ -466,7 +465,7 @@ mmap (int fd, void *addr)
 
 		read_bytes -= page_read_bytes;
 		offset += page_read_bytes;
-		addr += PGSIZE;	
+		addr += PGSIZE;
 	}
 
 	mmfile->mapping = thread_current()->mapid;
@@ -485,7 +484,6 @@ munmap (mapid_t mapping)
 		 e = list_next (e))
 	{
 		struct mapped_file * mmfile = list_entry (e, struct mapped_file, elem);
-
 		if (mmfile->mapping == mapping)
 		{
 
@@ -500,7 +498,7 @@ mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr)
 
 		pte->vaddr = addr;
 		pte->size = size;
-		pte->state = MMAPED_FILE;
+		pte->state = ON_DISK;
 		pte->f = file;
 		pte->f_offset = ofs;
 		pte->writable = true;

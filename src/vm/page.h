@@ -37,7 +37,6 @@ struct page
 
 void page_init(void);
 
-void page_add_to_executabe_segment(struct page * pte);
 bool page_add_entry(struct page * p);
 void page_delete_entry (struct page * p);
 

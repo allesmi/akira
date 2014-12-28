@@ -13,6 +13,7 @@ page_init(void)
 
 }
 
+
 void
 page_add_to_executabe_segment(struct page * pte)
 {
@@ -25,10 +26,8 @@ page_add_entry(struct page * p)
 	if(debug)
 		printf("Added to page table: %p+%d\n", p->vaddr, p->size);
 	struct thread * t = thread_current();
-	if (hash_insert(&t->pages, &p->h_elem) == NULL)
-		return true;
-	else
-		return false;
+
+	return hash_insert(&t->pages, &p->h_elem) == NULL;
 }
 
 void
@@ -77,6 +76,9 @@ void
 page_destroy(struct hash_elem *e, void* aux UNUSED)
 {
 	struct page * p = hash_entry(e, struct page, h_elem);
+
+	// TODO: Write back to file
+
 	if(debug)
 		printf("Freeing page at %p+%d\n", p->vaddr, p->size);
 	free(p);
