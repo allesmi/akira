@@ -154,6 +154,7 @@ struct thread
     mapid_t mapid;                      /* Last used # for mm files */
 
     struct hash pages;
+    void * stack_bound;
 #endif
 
     /* Owned by thread.c. */
