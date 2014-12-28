@@ -39,11 +39,12 @@ void page_init(void);
 
 bool page_add_entry(struct page * p);
 void page_delete_entry (struct page * p);
+void page_destroy(struct page * p);
 
 struct page * page_get_entry_for_vaddr(const void * vaddr);
 
 unsigned page_hash(const struct hash_elem *e, void * aux);
 bool page_less(const struct hash_elem *a, const struct hash_elem *b, void *aux);
-void page_destroy(struct hash_elem *e, void* aux UNUSED);
+void page_hash_destroy(struct hash_elem *e, void* aux UNUSED);
 
 #endif

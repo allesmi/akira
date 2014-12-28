@@ -457,7 +457,7 @@ mmap (int fd, void *addr)
 	{
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 
-		if (!mmfile_add_to_page_table (reopen_file, offset, read_bytes, addr))
+		if (!mmfile_add_to_page_table (reopen_file, offset, page_read_bytes, addr))
 		{
 			free (mmfile);
 			return -1;

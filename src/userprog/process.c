@@ -200,7 +200,7 @@ process_exit (void)
   /* Release all entries in the page table*/
   if(!hash_empty(&cur->pages))
   {
-    hash_clear(&cur->pages, page_destroy);
+    hash_clear(&cur->pages, page_hash_destroy);
   }
 
   struct thread * parent = cur->parent;
