@@ -470,7 +470,6 @@ mmap (int fd, void *addr)
 void 
 munmap (mapid_t mapping)
 {
-	printf("anfang");
 	struct thread * t = thread_current ();
 	struct list_elem *e;
 
@@ -495,6 +494,4 @@ munmap (mapid_t mapping)
 			free (mmfile);
 		}
 	}
-
-	printf("ende");
 }
