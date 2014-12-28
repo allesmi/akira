@@ -5,10 +5,36 @@
 #include "lib/kernel/hash.h"
 #include "threads/vaddr.h"
 #include "threads/thread.h"
+#include "threads/malloc.h"
 
 void
 page_init(void)
 {
+
+}
+
+bool
+mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr, size_t page_read_bytes)
+{
+		struct page * pte = malloc(sizeof(struct page));
+
+		pte->vaddr = addr;
+		pte->size = size;
+		pte->state = MMAPED_FILE;
+		pte->f = file;
+		pte->f_offset = ofs;
+		pte->writable = true;
+
+		page_add_to_executabe_segment(pte);
+
+		struct mapped_file *mmfile = malloc(sizeof(struct mapped_file));
+
+		mmfile->mapping = thread_current()->mapid;
+		mmfile->p = pte;
+		thread_current()->mapid++;
+		list_push_back(&thread_current()->mappedfiles, &mmfile->elem);
+
+		return true;
 
 }
 
