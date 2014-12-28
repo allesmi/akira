@@ -159,40 +159,43 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  struct page * p = page_get_entry_for_vaddr(fault_addr);
-
-  if(user || p != NULL)
+  if(fault_addr >= (void*)0x8048000 && fault_addr < PHYS_BASE)
   {
-    if(p == NULL)
-    {
-      /* Assumption: When an address faults one eigth of a page below the 
-      current stack pointer, then the stack needs a page to grow. */
-      if(fault_addr > f->esp - PGSIZE/8)
-      {
-        uint8_t * kpage = frame_alloc();
-        if(kpage != NULL)
-        {
-          uint8_t * sb = pg_round_down(fault_addr);
-          if(!install_page(sb, kpage, true))
-            frame_free(kpage);
-          struct page * p = (struct page *)malloc(sizeof(struct page));
-          if(p != NULL)
-          {
-            p->vaddr = sb;
-            p->size = PGSIZE;
-            p->state = FRAMED;
-            p->writable = true;
-            page_add_entry(p);
+    struct page * p = page_get_entry_for_vaddr(fault_addr);
 
-            return;
+    if(user || p != NULL)
+    {
+      if(p == NULL)
+      {
+        /* Assumption: When an address faults one eigth of a page below the 
+        current stack pointer, then the stack needs a page to grow. */
+        if(fault_addr > f->esp - PGSIZE/8)
+        {
+          uint8_t * kpage = frame_alloc();
+          if(kpage != NULL)
+          {
+            uint8_t * sb = pg_round_down(fault_addr);
+            if(!install_page(sb, kpage, true))
+              frame_free(kpage);
+            struct page * p = (struct page *)malloc(sizeof(struct page));
+            if(p != NULL)
+            {
+              p->vaddr = sb;
+              p->size = PGSIZE;
+              p->state = FRAMED;
+              p->writable = true;
+              page_add_entry(p);
+
+              return;
+            }
           }
         }
       }
-    }
-    else if(p != NULL && p->state == ON_DISK)
-    {
-      swap_in_page(p);
-      return;
+      else if(p != NULL && p->state == ON_DISK)
+      {
+        swap_in_page(p);
+        return;
+      }
     }
   }
 
