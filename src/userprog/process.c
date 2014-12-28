@@ -197,6 +197,12 @@ process_exit (void)
     free(c);
   }
 
+  /* Release all entries in the page table*/
+  if(!hash_empty(&cur->pages))
+  {
+    hash_clear(&cur->pages, page_destroy);
+  }
+
   struct thread * parent = cur->parent;
   if(parent != NULL)
   {
@@ -585,7 +591,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
       
-      struct page * pte = palloc_get_page(0);
+      struct page * pte = (struct page *)malloc(sizeof(struct page));
 
       pte->vaddr = upage;
       pte->size = page_read_bytes;

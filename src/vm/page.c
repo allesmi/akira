@@ -57,6 +57,7 @@ page_delete_entry (struct page * p)
 {
 	struct thread * t = thread_current();
 	hash_delete (&t->pages, &p->h_elem);
+	free(p);
 }
 
 struct page *
@@ -91,4 +92,11 @@ page_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED
 	struct page * pteb = hash_entry(b, struct page, h_elem);
 
 	return ptea->vaddr < pteb->vaddr;
+}
+
+void
+page_destroy(struct hash_elem *e, void* aux UNUSED)
+{
+	struct page * p = hash_entry(e, struct page, h_elem);
+	free(p);
 }
