@@ -95,7 +95,7 @@ page_destroy(struct page * p)
 {
 	struct thread * t = thread_current();
 	
-	if (pagedir_is_dirty (t->pagedir, p->vaddr))
+	if (p->state == FRAMED && p->f != NULL && pagedir_is_dirty (t->pagedir, p->vaddr))
 	{
 		file_write_at (p->f, p->vaddr, p->size, p->f_offset);
 	}	
