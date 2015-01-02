@@ -598,6 +598,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       p->vaddr = upage;
       p->size = page_read_bytes;
       p->state = ON_DISK;
+      p->origin = EXECUTABLE;
       p->f = file;
       p->f_offset = ofs + (upage - initial);
       p->writable = writable;
@@ -637,7 +638,10 @@ setup_stack (void **esp)
       {
         p->vaddr = sb;
         p->size = PGSIZE;
-        p->state = FRAMED;
+        p->origin = STACK;
+        p->swap_slot = -1;
+        p->f = NULL;
+        p->writable = true;
         page_add_entry(p);
         t->stack_bound = sb;
       }

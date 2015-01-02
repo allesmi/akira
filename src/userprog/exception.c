@@ -181,7 +181,8 @@ page_fault (struct intr_frame *f)
             {
               p->vaddr = sb;
               p->size = PGSIZE;
-              p->state = FRAMED;
+              p->origin = STACK;
+              p->swap_slot = -1;
               p->f = NULL;
               p->writable = true;
               page_add_entry(p);
