@@ -261,36 +261,40 @@ install_page (void *upage, void *kpage, bool writable)
 static bool
 swap_in_page(struct page * p)
 {
-      /* Get a page of memory. */
-      uint8_t *kpage = frame_alloc();
-      if (kpage == NULL)
-        return false;
+  printf("swap_in_page start\n");
+  /* Get a page of memory. */
+  struct frame_entry * fe = frame_alloc();
+  if (fe->frame == NULL)
+    return false;
 
-      if(p->state == ON_DISK)
-      {
-        /* Load this page. */
-        int read_bytes = file_read_at (p->f, kpage, p->size, p->f_offset);
+  if(p->state == ON_DISK)
+  {
+    /* Load this page. */
+    int read_bytes = file_read_at (p->f, fe->frame, p->size, p->f_offset);
 
-        if (read_bytes != p->size)
-        {
-          frame_free(kpage); //palloc_free_page (kpage);
-          return false;
-        }
-        memset (kpage + p->size, 0, PGSIZE - p->size);
-      }
-      else if (p->state == ON_SWAP)
-      {
-        swap_retrieve(p->swap_slot, kpage);
-      }
+    if (read_bytes != p->size)
+    {
+      frame_free(fe); //palloc_free_page (kpage);
+      return false;
+    }
+    memset (fe->frame + p->size, 0, PGSIZE - p->size);
+  }
+  else if (p->state == ON_SWAP)
+  {
+    swap_retrieve(p->swap_slot, fe->frame);
+  }
 
-      p->state = FRAMED;
+  p->state = FRAMED;
 
-      /* Add the page to the process's address space. */
-      if (!install_page (p->vaddr, kpage, p->writable))
-      {
-        frame_free(kpage); //palloc_free_page (kpage);
-        return false;
-      }
+  /* Add the page to the process's address space. */
+  if (!install_page (p->vaddr, fe->frame, p->writable))
+  {
+    frame_free(fe); //palloc_free_page (kpage);
+    return false;
+  }
 
-      return true;
+  fe->page = p;
+
+  printf("swap_in_page end\n");
+  return true;
 }

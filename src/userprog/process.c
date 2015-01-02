@@ -618,21 +618,21 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp) 
 {
-  uint8_t *kpage;
+  struct frame_entry * fe;
   bool success = false;
 
-  kpage = frame_alloc(); //palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
+  fe = frame_alloc();
+  if (fe->frame != NULL) 
     {
       uint8_t * sb = ((uint8_t *) PHYS_BASE) - PGSIZE;
       struct thread * t = thread_current();
 
-      success = install_page (sb, kpage, true);
+      success = install_page (sb, fe->frame, true);
 
       if (success)
         *esp = PHYS_BASE;
       else
-        frame_free(kpage); //palloc_free_page (kpage);
+        frame_free(fe);
       struct page * p = (struct page *)malloc(sizeof(struct page));
       if(p != NULL)
       {
@@ -644,6 +644,7 @@ setup_stack (void **esp)
         p->writable = true;
         page_add_entry(p);
         t->stack_bound = sb;
+        fe->page = p;
       }
     }
   return success;

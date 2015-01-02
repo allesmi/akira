@@ -11,8 +11,7 @@ enum page_state
 {
 	FRAMED,
 	ON_DISK,
-	ON_SWAP,
-	MMAPED_FILE
+	ON_SWAP
 };
 
 enum page_origin
