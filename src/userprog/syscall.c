@@ -493,6 +493,7 @@ munmap (mapid_t mapping)
 			while (size > 0)
 			{
 				struct page * p = page_get_entry_for_vaddr (addr);
+				hash_delete (&t->pages, &p->h_elem);
 				page_destroy (p);
 
 				int page_read_bytes = size < PGSIZE ? size : PGSIZE;
@@ -511,11 +512,12 @@ mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr)
 		pte->vaddr = addr;
 		pte->size = size;
 		pte->state = ON_DISK;
+		pte->origin = MMAPPED_FILE;
 		pte->f = file;
 		pte->f_offset = ofs;
 		pte->writable = true;
 
-		if (page_add_entry (pte) == true)
+		if (page_add_entry (pte))
 		{
 			return true;
 		}
