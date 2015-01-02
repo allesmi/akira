@@ -452,6 +452,7 @@ mmap (int fd, void *addr)
 
 	struct mapped_file *mmfile = malloc (sizeof(struct mapped_file));
 	mmfile->start_addr = addr;
+	mmfile->size = read_bytes;
 
 	while (read_bytes > 0)
 	{
@@ -486,12 +487,12 @@ munmap (mapid_t mapping)
 		struct mapped_file * mmfile = list_entry (e, struct mapped_file, elem);
 		if (mmfile->mapping == mapping)
 		{
+
 			int size = mmfile->size;
 			void * addr = mmfile->start_addr;
 			while (size > 0)
 			{
-				
-				struct page * p = page_get_entry_for_vaddr(addr);
+				struct page * p = page_get_entry_for_vaddr (addr);
 				page_destroy (p);
 
 				int page_read_bytes = size < PGSIZE ? size : PGSIZE;
@@ -505,7 +506,7 @@ munmap (mapid_t mapping)
 bool
 mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr)
 {
-		struct page * pte = malloc(sizeof(struct page));
+		struct page * pte = malloc (sizeof (struct page));
 
 		pte->vaddr = addr;
 		pte->size = size;
@@ -514,13 +515,13 @@ mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr)
 		pte->f_offset = ofs;
 		pte->writable = true;
 
-		if (page_add_entry(pte) == true)
+		if (page_add_entry (pte) == true)
 		{
 			return true;
 		}
 		else
 		{
-			free(pte);
+			free (pte);
 			return false;	
 		}
 }

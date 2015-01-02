@@ -75,9 +75,11 @@ page_destroy(struct page * p)
 		if(debug)
 			printf("Writing from %p back to file at %x with %d bytes\n", p->vaddr, p->f_offset, p->size);
 		file_write_at (p->f, p->vaddr, p->size, p->f_offset);
-	}	
+	}
 
 	if(debug)
 		printf("Freeing page at %p+%d\n", p->vaddr, p->size);
+	
+	hash_delete (&t->pages, &p->h_elem);
 	free(p);
 }
