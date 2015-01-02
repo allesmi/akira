@@ -24,12 +24,11 @@ frame_init(void)
 struct frame_entry *
 frame_alloc(void)
 {
-	printf("frame_alloc start\n");
 	void * page = palloc_get_page(PAL_USER);
 	int i = 0;
 	struct frame_entry * fe = NULL;
-
-	while(page == NULL || i < list_size(&frame_list))
+	int sz = list_size(&frame_list);
+	while(page == NULL && i < sz + 1)
 	{
 		fe = list_entry(list_pop_front(&frame_list), struct frame_entry, elem);
 		if(pagedir_is_accessed(fe->owner->pagedir, fe->frame))
@@ -45,6 +44,9 @@ frame_alloc(void)
 		i++;
 	}
 
+	if(page == NULL)
+		PANIC("Allocation of user frame failed.");
+
 	if(fe == NULL)
 		fe = (struct frame_entry *)malloc(sizeof(struct frame_entry));
 
@@ -54,7 +56,6 @@ frame_alloc(void)
 	fe->frame = page;
 	fe->owner = thread_current();
 	list_push_back(&frame_list, &fe->elem);
-	printf("frame_alloc end\n");
 
 	return fe;
 }
@@ -85,4 +86,5 @@ evict_frame(struct frame_entry * fe)
 	}
 
 	pagedir_clear_page(fe->owner->pagedir, p->vaddr);
+	palloc_free_page(fe->frame);
 }

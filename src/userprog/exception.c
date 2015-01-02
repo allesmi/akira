@@ -261,7 +261,6 @@ install_page (void *upage, void *kpage, bool writable)
 static bool
 swap_in_page(struct page * p)
 {
-  printf("swap_in_page start\n");
   /* Get a page of memory. */
   struct frame_entry * fe = frame_alloc();
   if (fe->frame == NULL)
@@ -295,6 +294,5 @@ swap_in_page(struct page * p)
 
   fe->page = p;
 
-  printf("swap_in_page end\n");
   return true;
 }
