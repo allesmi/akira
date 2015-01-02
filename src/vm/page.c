@@ -70,11 +70,10 @@ void
 page_destroy(struct page * p)
 {
 	struct thread * t = thread_current();
-
-	if (p->state == FRAMED && p->f != NULL && pagedir_is_dirty (t->pagedir, p->vaddr))
+	if (p->state == FRAMED && p->origin == MMAPPED_FILE && pagedir_is_dirty (t->pagedir, p->vaddr))
 	{
 		if(debug)
-			printf("Writing from %p back to file at %u with %d bytes\n", p->vaddr, p->f_offset, p->size);
+			printf("Writing from %p back to file at %x with %d bytes\n", p->vaddr, p->f_offset, p->size);
 		file_write_at (p->f, p->vaddr, p->size, p->f_offset);
 	}
 

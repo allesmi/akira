@@ -15,6 +15,13 @@ enum page_state
 	MMAPED_FILE
 };
 
+enum page_origin
+{
+	STACK,
+	EXECUTABLE,
+	MMAPPED_FILE
+};
+
 struct page_table
 {
 	struct hash pages;
@@ -26,6 +33,7 @@ struct page
 	void * vaddr;
 	int size;
 	enum page_state state;
+	enum page_origin origin;
 	block_sector_t swap_slot;		/* When state is ON_SWAP */
 	struct file * f;				/* When state is ON_FILE */
 	int f_offset;
