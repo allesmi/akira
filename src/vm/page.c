@@ -14,17 +14,12 @@ page_init(void)
 
 }
 
-void
-page_add_to_executabe_segment(struct page * pte)
-{
-	page_add_entry(pte);
-}
-
 bool
 page_add_entry(struct page * p)
 {
 	if(debug)
-		printf("Added to page table: %p+%d\n", p->vaddr, p->size);
+		printf("Added to page table of thread %d: %p+%d %s.\n", thread_tid(), p->vaddr, p->size,
+			p->f != NULL? "backed by file": "");
 	struct thread * t = thread_current();
 
 	return hash_insert(&t->pages, &p->h_elem) == NULL;
@@ -77,7 +72,9 @@ page_destroy(struct page * p)
 	struct thread * t = thread_current();
 
 	if (p->state == FRAMED && p->f != NULL && pagedir_is_dirty (t->pagedir, p->vaddr))
-	{	
+	{
+		if(debug)
+			printf("Writing from %p back to file at %u with %d bytes\n", p->vaddr, p->f_offset, p->size);
 		file_write_at (p->f, p->vaddr, p->size, p->f_offset);
 	}
 

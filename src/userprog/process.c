@@ -592,6 +592,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
       
       struct page * p = (struct page *)malloc(sizeof(struct page));
+      if(p == NULL)
+        PANIC("Unable to allocate page data");
 
       p->vaddr = upage;
       p->size = page_read_bytes;

@@ -182,8 +182,13 @@ page_fault (struct intr_frame *f)
               p->vaddr = sb;
               p->size = PGSIZE;
               p->state = FRAMED;
+              p->f = NULL;
               p->writable = true;
               page_add_entry(p);
+            }
+            else
+            {
+              PANIC("Unable to allocate page data");
             }
 
             sb += PGSIZE;
@@ -243,8 +248,8 @@ install_page (void *upage, void *kpage, bool writable)
   struct thread *t = thread_current ();
 
   if (debug)
-    printf("Installing phys page %p as %s virtual page %p for %s.\n", 
-    kpage, writable?"writeable":"read-only",upage, thread_name());
+    printf("Installing phys page %p as %s virtual page %p for thread %d.\n", 
+    kpage, writable?"writeable":"read-only",upage, thread_tid());
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
