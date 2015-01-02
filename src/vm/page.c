@@ -6,6 +6,7 @@
 #include "threads/vaddr.h"
 #include "threads/thread.h"
 #include "threads/malloc.h"
+#include "userprog/pagedir.h"
 
 void
 page_init(void)
@@ -74,13 +75,15 @@ void
 page_destroy(struct page * p)
 {
 	struct thread * t = thread_current();
-	
+
 	if (p->state == FRAMED && p->f != NULL && pagedir_is_dirty (t->pagedir, p->vaddr))
-	{
+	{	
 		file_write_at (p->f, p->vaddr, p->size, p->f_offset);
-	}	
+	}
 
 	if(debug)
 		printf("Freeing page at %p+%d\n", p->vaddr, p->size);
+	
+	hash_delete (&t->pages, &p->h_elem);
 	free(p);
 }
