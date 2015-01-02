@@ -512,11 +512,12 @@ mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr)
 		pte->vaddr = addr;
 		pte->size = size;
 		pte->state = ON_DISK;
+		pte->origin = MMAPPED_FILE;
 		pte->f = file;
 		pte->f_offset = ofs;
 		pte->writable = true;
 
-		if (page_add_entry (pte) == true)
+		if (page_add_entry (pte))
 		{
 			return true;
 		}

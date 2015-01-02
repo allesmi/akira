@@ -80,5 +80,6 @@ page_destroy(struct page * p)
 	if(debug)
 		printf("Freeing page at %p+%d\n", p->vaddr, p->size);
 	
+	hash_delete (&t->pages, &p->h_elem);
 	free(p);
 }
