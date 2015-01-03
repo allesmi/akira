@@ -196,9 +196,8 @@ process_exit (void)
 
     free(c);
   }
-  printf("Before releasing\n");
+
   frame_release_all();
-  printf("After releasing\n");
 
   /* Release all entries in the page table*/
   if(!hash_empty(&cur->pages))

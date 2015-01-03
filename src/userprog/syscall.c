@@ -496,8 +496,9 @@ munmap (mapid_t mapping)
 			while (size > 0)
 			{
 				struct page * p = page_get_entry_for_vaddr (addr);
-				
-				frame_free (p->fe);
+
+				if (p->state == FRAMED)
+					frame_free (p->fe);
 				page_destroy (p);
 
 				int page_read_bytes = size < PGSIZE ? size : PGSIZE;
