@@ -199,7 +199,6 @@ process_exit (void)
 
   frame_release_all();
 
-
   /* Release all entries in the page table*/
   if(!hash_empty(&cur->pages))
   {
