@@ -130,5 +130,8 @@ evict_frame(struct frame_entry * fe, bool skip_swap)
 
 	if(fe->owner != NULL)
 		pagedir_clear_page(fe->owner->pagedir, p->vaddr);
+
+	p->fe = NULL;
+	
 	palloc_free_page(fe->frame);
 }

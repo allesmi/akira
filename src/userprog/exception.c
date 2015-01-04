@@ -188,6 +188,7 @@ page_fault (struct intr_frame *f)
               p->origin = STACK;
               p->swap_slot = -1;
               p->f = NULL;
+              p->fe = NULL;
               p->writable = true;
               page_add_entry(p);
             }

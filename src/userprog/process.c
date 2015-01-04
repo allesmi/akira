@@ -196,9 +196,9 @@ process_exit (void)
 
     free(c);
   }
-  printf("Before releasing\n");
+
   frame_release_all();
-  printf("After releasing\n");
+
 
   /* Release all entries in the page table*/
   if(!hash_empty(&cur->pages))
@@ -604,6 +604,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       p->state = ON_DISK;
       p->origin = EXECUTABLE;
       p->f = file;
+      p->fe = NULL;
       p->f_offset = ofs + (upage - initial);
       p->writable = writable;
 
