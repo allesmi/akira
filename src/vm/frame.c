@@ -71,8 +71,9 @@ frame_alloc(void)
 void
 frame_free(struct frame_entry * fe)
 {
-	palloc_free_page(fe->frame);
-	fe->owner = NULL;
+	evict_frame(fe, true);
+	list_remove(&fe->elem);
+	free(fe);
 }
 
 void
@@ -103,7 +104,7 @@ frame_release_all(void)
 		printf("Released all %d frames of thread %d\n", freecnt, thread_tid());
 }
 
-static void
+void
 evict_frame(struct frame_entry * fe, bool skip_swap)
 {
 	struct page * p = fe->page;
