@@ -104,7 +104,7 @@ frame_release_all(void)
 		printf("Released all %d frames of thread %d\n", freecnt, thread_tid());
 }
 
-void
+static void
 evict_frame(struct frame_entry * fe, bool skip_swap)
 {
 	struct page * p = fe->page;
