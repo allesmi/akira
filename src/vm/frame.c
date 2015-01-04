@@ -93,6 +93,10 @@ frame_release_all(void)
 			free(fe);
 			freecnt++;
 		}
+		else
+		{
+			list_push_back(&frame_list, &fe->elem);
+		}
 	}
 	lock_release(&frame_lock);
 	if(debug)

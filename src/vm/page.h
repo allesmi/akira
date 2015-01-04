@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "vm/swap.h"
+#include "vm/frame.h"
 #include "lib/kernel/list.h"
 #include "lib/kernel/hash.h"
 
@@ -37,6 +38,7 @@ struct page
 	struct file * f;				/* When state is ON_FILE */
 	int f_offset;
 	bool writable;
+	struct frame_entry * fe;
 
 	struct list_elem l_elem;			/* List element */
 	struct hash_elem h_elem;			/* List element */

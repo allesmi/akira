@@ -59,7 +59,7 @@ swap_retrieve(block_sector_t slot_no, void * page)
 {
 	if(slot_no < 0)
 		return;
-	
+
 	int i;
 	if(page != NULL)
 	{

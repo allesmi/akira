@@ -196,8 +196,9 @@ process_exit (void)
 
     free(c);
   }
-
+  printf("Before releasing\n");
   frame_release_all();
+  printf("After releasing\n");
 
   /* Release all entries in the page table*/
   if(!hash_empty(&cur->pages))
@@ -648,6 +649,7 @@ setup_stack (void **esp)
         p->writable = true;
         page_add_entry(p);
         t->stack_bound = sb;
+        p->fe = fe;
         fe->page = p;
       }
     }

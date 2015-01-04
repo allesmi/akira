@@ -270,6 +270,13 @@ swap_in_page(struct page * p)
   if (fe->frame == NULL)
     return false;
 
+  /* Add the page to the process's address space. */
+  if (!install_page (p->vaddr, fe->frame, p->writable))
+  {
+    frame_free(fe); //palloc_free_page (kpage);
+    return false;
+  }
+
   if(p->state == ON_DISK)
   {
     /* Load this page. */
@@ -284,19 +291,13 @@ swap_in_page(struct page * p)
   }
   else if (p->state == ON_SWAP)
   {
-    swap_retrieve(p->swap_slot, fe->frame);
+    swap_retrieve(p->swap_slot, p->vaddr);
   }
 
   p->state = FRAMED;
 
-  /* Add the page to the process's address space. */
-  if (!install_page (p->vaddr, fe->frame, p->writable))
-  {
-    frame_free(fe); //palloc_free_page (kpage);
-    return false;
-  }
-
   fe->page = p;
+  p->fe = fe;
 
   return true;
 }
