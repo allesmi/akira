@@ -118,7 +118,10 @@ evict_frame(struct frame_entry * fe, bool skip_swap)
 	}
 	else if(p->origin == MMAPPED_FILE)
 	{
-		file_write_at (p->f, p->vaddr, p->size, p->f_offset);
+		if(pagedir_is_dirty(thread_current()->pagedir, p->vaddr))
+		{
+			file_write_at (p->f, p->vaddr, p->size, p->f_offset);
+		}
 		p->state = ON_DISK;
 	}
 	else if(p->origin == EXECUTABLE && !p->writable)
@@ -132,6 +135,6 @@ evict_frame(struct frame_entry * fe, bool skip_swap)
 		pagedir_clear_page(fe->owner->pagedir, p->vaddr);
 
 	p->fe = NULL;
-	
+
 	palloc_free_page(fe->frame);
 }
