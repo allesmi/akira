@@ -205,7 +205,6 @@ page_fault (struct intr_frame *f)
       }
       else if(p != NULL)
       {
-        // printf("found pte, swapping in ...\n");
         if(write && !p->writable)
         {
           syscall_exit(-1);

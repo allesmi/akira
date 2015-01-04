@@ -12,7 +12,7 @@
 #include "threads/palloc.h"
 #include "userprog/pagedir.h"
 
-static void evict_frame(struct frame_entry * fe);
+static void evict_frame(struct frame_entry * fe, bool skip_swap);
 
 static struct list frame_list;
 static struct lock frame_lock;
@@ -43,7 +43,7 @@ frame_alloc(void)
 		}
 		else
 		{
-			evict_frame(fe);
+			evict_frame(fe, false);
 			page = palloc_get_page(PAL_USER);
 		}
 		i++;
@@ -89,7 +89,7 @@ frame_release_all(void)
 
 		if(fe->owner == thread_current())
 		{
-			evict_frame(fe);
+			evict_frame(fe, true);
 			free(fe);
 			freecnt++;
 		}
@@ -100,13 +100,16 @@ frame_release_all(void)
 }
 
 static void
-evict_frame(struct frame_entry * fe)
+evict_frame(struct frame_entry * fe, bool skip_swap)
 {
 	struct page * p = fe->page;
 	if(p->origin == STACK || (p->origin == EXECUTABLE && p->writable))
 	{
-		p->swap_slot = swap_store(p->vaddr);
-		p->state = ON_SWAP;
+		if(!skip_swap)
+		{
+			p->swap_slot = swap_store(fe->frame);
+			p->state = ON_SWAP;
+		}
 	}
 	else if(p->origin == MMAPPED_FILE)
 	{

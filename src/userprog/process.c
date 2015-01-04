@@ -642,6 +642,7 @@ setup_stack (void **esp)
         p->vaddr = sb;
         p->size = PGSIZE;
         p->origin = STACK;
+        p->state = FRAMED;
         p->swap_slot = -1;
         p->f = NULL;
         p->writable = true;
