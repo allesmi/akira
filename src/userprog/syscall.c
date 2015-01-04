@@ -23,7 +23,7 @@ bool mmfile_add_to_page_table (struct file * file, int ofs, int size, void * add
 mapid_t mmap (int fd, void *addr);
 void munmap (mapid_t mapping);
 struct thread_file * get_thread_file (int fd);
-
+static char *get_syscall_name(int syscall_nr);
 struct lock syscall_lock;	/* A lock for system calls */
 
 void
@@ -77,8 +77,8 @@ syscall_handler (struct intr_frame *f)
 		current->last_fd = 2;
 		list_init (&current->thread_files);
 	}
-
-	// printf("Syscall %d by '%s'.\n", *(int *)f->esp, thread_name());
+	if(debug)
+		printf("Syscall %s by thread %d.\n", get_syscall_name(*(int *)f->esp), thread_tid());
 
 	switch (* (int *)(f->esp))
 	{
@@ -396,6 +396,8 @@ syscall_handler (struct intr_frame *f)
 			break;
 		}
 	}
+	if(debug)
+		printf("Syscall end.\n");
 }
 
 static void
@@ -526,4 +528,44 @@ mmfile_add_to_page_table (struct file * file, int ofs, int size, void * addr)
 			free (pte);
 			return false;	
 		}
+}
+
+static char *
+get_syscall_name(int syscall_nr)
+{
+	switch(syscall_nr)
+	{
+		case SYS_HALT:
+			return "SYS_HALT";
+		case SYS_EXIT:
+			return "SYS_EXIT";
+		case SYS_EXEC:
+			return "SYS_EXEC";
+		case SYS_WAIT:
+			return "SYS_WAIT";
+		case SYS_CREATE:
+			return "SYS_CREATE";
+		case SYS_REMOVE:
+			return "SYS_REMOVE";
+		case SYS_OPEN:
+			return "SYS_OPEN";
+		case SYS_FILESIZE:
+			return "SYS_FILESIZE";
+		case SYS_READ:
+			return "SYS_READ";
+		case SYS_WRITE:
+			return "SYS_WRITE";
+		case SYS_SEEK:
+			return "SYS_SEEK";
+		case SYS_TELL:
+			return "SYS_TELL";
+		case SYS_CLOSE:
+			return "SYS_CLOSE";
+		case SYS_MMAP:
+			return "SYS_MMAP";
+		case SYS_MUNMAP:
+			return "SYS_MUNMAP";
+		default:
+			return "Unknown syscall";
+	}
 }

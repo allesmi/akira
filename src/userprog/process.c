@@ -197,11 +197,14 @@ process_exit (void)
     free(c);
   }
 
+  frame_release_all();
+
   /* Release all entries in the page table*/
   if(!hash_empty(&cur->pages))
   {
     hash_clear(&cur->pages, page_hash_destroy);
   }
+
 
   struct thread * parent = cur->parent;
   if(parent != NULL)

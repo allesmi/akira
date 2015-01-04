@@ -5,6 +5,7 @@
 #include "lib/kernel/bitmap.h"
 
 #include "threads/loader.h"
+#include "threads/synch.h"
 #include "threads/malloc.h"
 #include "vm/frame.h"
 #include "threads/vaddr.h"
@@ -14,16 +15,19 @@
 static void evict_frame(struct frame_entry * fe);
 
 static struct list frame_list;
+static struct lock frame_lock;
 
 void
 frame_init(void)
 {
 	list_init(&frame_list);
+	lock_init(&frame_lock);
 }
 
 struct frame_entry *
 frame_alloc(void)
 {
+	lock_acquire(&frame_lock);
 	void * page = palloc_get_page(PAL_USER);
 	int i = 0;
 	struct frame_entry * fe = NULL;
@@ -31,6 +35,7 @@ frame_alloc(void)
 	while(page == NULL && i < sz + 1)
 	{
 		fe = list_entry(list_pop_front(&frame_list), struct frame_entry, elem);
+
 		if(pagedir_is_accessed(fe->owner->pagedir, fe->frame))
 		{
 			pagedir_set_accessed(fe->owner->pagedir, fe->frame, false);
@@ -48,15 +53,18 @@ frame_alloc(void)
 		PANIC("Allocation of user frame failed.");
 
 	if(fe == NULL)
+	{
 		fe = (struct frame_entry *)malloc(sizeof(struct frame_entry));
-
-	if(fe == NULL)
-		PANIC("Allocation of frame data failed.");
+		if(fe == NULL)
+			PANIC("Allocation of frame data failed.");
+	}
 
 	fe->frame = page;
 	fe->owner = thread_current();
 	list_push_back(&frame_list, &fe->elem);
+	pagedir_set_accessed(fe->owner->pagedir, fe->frame, true);
 
+	lock_release(&frame_lock);
 	return fe;
 }
 
@@ -64,6 +72,31 @@ void
 frame_free(struct frame_entry * fe)
 {
 	palloc_free_page(fe->frame);
+	fe->owner = NULL;
+}
+
+void
+frame_release_all(void)
+{
+	int i, freecnt = 0;
+	lock_acquire(&frame_lock);
+	int sz = list_size(&frame_list);
+
+	for(i = 0; i < sz; i++)
+	{
+		struct list_elem *e = list_pop_front(&frame_list);
+		struct frame_entry * fe = list_entry(e, struct frame_entry, elem);
+
+		if(fe->owner == thread_current())
+		{
+			evict_frame(fe);
+			free(fe);
+			freecnt++;
+		}
+	}
+	lock_release(&frame_lock);
+	if(debug)
+		printf("Released all %d frames of thread %d\n", freecnt, thread_tid());
 }
 
 static void
@@ -84,7 +117,10 @@ evict_frame(struct frame_entry * fe)
 	{
 		p->state = ON_DISK;
 	}
+	if(debug)
+		printf("Evicting physical frame %p from virtual address %p owned by %d\n", fe->frame, fe->page->vaddr, fe->owner->tid);
 
-	pagedir_clear_page(fe->owner->pagedir, p->vaddr);
+	if(fe->owner != NULL)
+		pagedir_clear_page(fe->owner->pagedir, p->vaddr);
 	palloc_free_page(fe->frame);
 }

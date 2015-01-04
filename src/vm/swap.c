@@ -74,7 +74,8 @@ swap_store(void * page)
 void
 swap_retrieve(block_sector_t slot_no, void * page)
 {
-	block_read(swap_device, slot_no, page);
+	if(page != NULL)
+		block_read(swap_device, slot_no, page);
 
 	struct free_slot f;
 	f.next = free_list;

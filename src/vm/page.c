@@ -38,6 +38,8 @@ page_get_entry_for_vaddr(const void * vaddr)
 
 	e = hash_find(&t->pages, &pte.h_elem);
 
+	// if(e!=NULL) printf("Found entry for %p\n", vaddr);
+
 	return e != NULL ? hash_entry(e, struct page, h_elem) :
 		NULL;
 }
@@ -75,6 +77,10 @@ page_destroy(struct page * p)
 		if(debug)
 			printf("Writing from %p back to file at %x with %d bytes\n", p->vaddr, p->f_offset, p->size);
 		file_write_at (p->f, p->vaddr, p->size, p->f_offset);
+	}
+	else if(p->state == ON_SWAP)
+	{
+		swap_retrieve(p->swap_slot, NULL);
 	}
 
 	if(debug)

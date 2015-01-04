@@ -16,5 +16,6 @@ struct frame_entry
 void frame_init(void);
 struct frame_entry *frame_alloc(void);
 void frame_free(struct frame_entry *);
+void frame_release_all(void);
 
 #endif

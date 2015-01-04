@@ -162,16 +162,20 @@ page_fault (struct intr_frame *f)
 
   if(fault_addr >= (void*)0x8048000 && fault_addr < PHYS_BASE)
   {
+    // printf("Fault in user address (%p)\n", fault_addr);
     struct page * p = page_get_entry_for_vaddr(fault_addr);
 
     if(user || p != NULL)
     {
+      // printf("User context or in user area (%d || %p)\n", user, p);
       if(p == NULL)
       {
+        // printf("Stack growth?\n");
         /* Assumption: When an address faults one eigth of a page below the 
         current stack pointer, then the stack needs a page to grow. */
         if(fault_addr > f->esp - PGSIZE/8)
         {
+          // printf("Stack growth.\n");
           struct thread * t = thread_current();
           uint8_t * sb = pg_round_down(fault_addr);
           while(sb != t->stack_bound)
@@ -201,6 +205,7 @@ page_fault (struct intr_frame *f)
       }
       else if(p != NULL)
       {
+        // printf("found pte, swapping in ...\n");
         if(write && !p->writable)
         {
           syscall_exit(-1);

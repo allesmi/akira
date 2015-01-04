@@ -642,13 +642,13 @@ thread_donate(struct thread * t, int priority, int old_priority)
     if(t->donations[i] == old_priority)
     {
       t->donations[i] = priority;
-      if(debug)
-        printf("Donating %d (was %d) from %d to %d, [%d,%d,%d,...]\n", priority, old_priority, thread_tid(), t->tid, t->donations[0], t->donations[1], t->donations[2]);
+      // if(debug)
+      //   printf("Donating %d (was %d) from %d to %d, [%d,%d,%d,...]\n", priority, old_priority, thread_tid(), t->tid, t->donations[0], t->donations[1], t->donations[2]);
       return;
     }
   }
-  if(debug)
-    printf("Unable to donate from %d to %d, (s/%d/%d)\n", thread_tid(), t->tid, old_priority, priority);
+  // if(debug)
+  //   printf("Unable to donate from %d to %d, (s/%d/%d)\n", thread_tid(), t->tid, old_priority, priority);
 }
 
 void
@@ -662,9 +662,8 @@ thread_revoke_donation(struct thread * t, int priority)
       if(t->donations[i] == priority)// || t->lock_count < 0)
       {
         t->donations[i] = 0;
-        if(debug)
-          printf("Revoking donation %d from %d, [%d,%d,%d,...]\n", priority, t->tid, t->donations[0], t->donations[1], t->donations[2]);
-        // return;
+        // if(debug)
+        //   printf("Revoking donation %d from %d, [%d,%d,%d,...]\n", priority, t->tid, t->donations[0], t->donations[1], t->donations[2]);
       }
     }
   }
