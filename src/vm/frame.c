@@ -71,9 +71,11 @@ frame_alloc(void)
 void
 frame_free(struct frame_entry * fe)
 {
+	lock_acquire(&frame_lock);
 	evict_frame(fe, true);
 	list_remove(&fe->elem);
 	free(fe);
+	lock_release(&frame_lock);
 }
 
 void

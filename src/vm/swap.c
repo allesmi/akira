@@ -6,8 +6,10 @@
 #include "devices/block.h"
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
 
 static struct block * swap_device;
+static struct lock swap_lock;
 
 static block_sector_t free_list;
 static block_sector_t unused;
@@ -21,7 +23,7 @@ void
 swap_init(void)
 {
 	swap_device = block_get_role(BLOCK_SWAP);
-
+	lock_init(&swap_lock);
 	free_list = 0;
 	unused = 0;
 }
@@ -30,6 +32,7 @@ block_sector_t
 swap_store(void * page)
 {
 	int i;
+	lock_acquire(&swap_lock);
 	if (free_list == unused && unused == block_size(swap_device))
 		PANIC ("Swap is full!");
 	
@@ -50,17 +53,17 @@ swap_store(void * page)
 	{
 		block_write(swap_device, f + i, page + i * BLOCK_SECTOR_SIZE);
 	}
-
+	printf("Writing to slot %u\n", f/8);
+	lock_release(&swap_lock);
 	return f;
 }
 
 void
 swap_retrieve(block_sector_t slot_no, void * page)
 {
-	if(slot_no < 0)
-		return;
-
 	int i;
+	lock_acquire(&swap_lock);
+	printf("Retrieving from slot %u\n", slot_no/8);
 	if(page != NULL)
 	{
 		for(i = 0; i < PGSIZE/BLOCK_SECTOR_SIZE; i++)
@@ -74,4 +77,5 @@ swap_retrieve(block_sector_t slot_no, void * page)
 
 	block_write(swap_device, slot_no, &f);
 	free_list = slot_no;
+	lock_release(&swap_lock);
 }
