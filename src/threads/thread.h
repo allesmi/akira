@@ -57,10 +57,10 @@ struct child_data
 
 struct mapped_file
 {
-  mapid_t mapping;
-  void *start_addr;
-  int size;
-  struct list_elem elem;
+  mapid_t mapping;          /* mmap-id of the mmapped file */
+  void *start_addr;         /* start address of the file */
+  int size;                 /* size of the file */
+  struct list_elem elem;    /* List element */
 };
 
 

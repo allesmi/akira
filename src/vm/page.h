@@ -10,16 +10,16 @@
 
 enum page_state
 {
-	FRAMED,
-	ON_DISK,
-	ON_SWAP
+	FRAMED,						/* Framed page */
+	ON_DISK,					/* page on disk */
+	ON_SWAP						/* page in swap */
 };
 
 enum page_origin
 {
-	STACK,
-	EXECUTABLE,
-	MMAPPED_FILE
+	STACK,						/* page comes from stack */
+	EXECUTABLE,					/* page comes from executable */
+	MMAPPED_FILE				/* page comes from mm-file */
 };
 
 struct page_table
