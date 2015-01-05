@@ -53,7 +53,7 @@ swap_store(void * page)
 	{
 		block_write(swap_device, f + i, page + i * BLOCK_SECTOR_SIZE);
 	}
-	printf("Writing to slot %u\n", f/8);
+
 	lock_release(&swap_lock);
 	return f;
 }
@@ -63,7 +63,6 @@ swap_retrieve(block_sector_t slot_no, void * page)
 {
 	int i;
 	lock_acquire(&swap_lock);
-	printf("Retrieving from slot %u\n", slot_no/8);
 	if(page != NULL)
 	{
 		for(i = 0; i < PGSIZE/BLOCK_SECTOR_SIZE; i++)
