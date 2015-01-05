@@ -4,11 +4,12 @@
 #include "threads/thread.h"
 #include "lib/kernel/list.h"
 
+/* An entry in the global farme table */
 struct frame_entry
 {
-	void * frame;
-	struct page * page;
-	struct thread * owner;
+	void * frame; /* A pointer to the physical frame */
+	struct page * page; /* A pointer to the page data on this frame */
+	struct thread * owner; /* Owning thread */
 
 	struct list_elem elem;
 };

@@ -29,26 +29,79 @@ Alexander Miller <alles.mil@gmail.com>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+/* A kernel thread or user process. */
+struct thread
+{
+	//...
+
+    struct hash pages;                  /* A hash of used pages */
+    void * stack_bound;                 /* Address of the lowest stack page */
+}
+
+/* States of a page */
+enum page_state
+{
+	FRAMED,						/* Framed page */
+	ON_DISK,					/* page on disk */
+	ON_SWAP						/* page in swap */
+};
+
+/* Origins of a page */
+enum page_origin
+{
+	STACK,						/* page comes from stack */
+	EXECUTABLE,					/* page comes from executable */
+	MMAPPED_FILE				/* page comes from mm-file */
+};
+
+/* Page data, entry in a page table */
+struct page
+{
+	void * vaddr;					/* Pointer to the virtual page */
+	int size;						/* Number of bytes */
+	enum page_state state;
+	enum page_origin origin;
+	block_sector_t swap_slot;		/* When state is ON_SWAP */
+	struct file * f;				/* When state is ON_FILE */
+	int f_offset;					/* Offset in the file */
+	bool writable;					/* Access control */
+	struct frame_entry * fe;		/* Pointer to frame table entry */
+
+	struct list_elem l_elem;			/* List element */
+	struct hash_elem h_elem;			/* List element */
+};
+
+
+
 ---- ALGORITHMS ----
 
 >> A2: In a few paragraphs, describe your code for locating the frame,
 >> if any, that contains the data of a given page.
 
-We are using a hash map to find pages via their virtual address. Addresses are round down to page boundaries and used as search keys.
+We are using a hash map to find pages via their virtual address. Every thread has an own pages hash.
+Addresses are round down to page boundaries and used as search keys.
 
 >> A3: How does your code coordinate accessed and dirty bits between
 >> kernel and user virtual addresses that alias a single frame, or
 >> alternatively how do you avoid the issue?
+
+We access data only via user adress.
 
 ---- SYNCHRONIZATION ----
 
 >> A4: When two user processes both need a new frame at the same time,
 >> how are races avoided?
 
+We lock the whole frame table for allocation and eviction.
+
 ---- RATIONALE ----
 
 >> A5: Why did you choose the data structure(s) that you did for
 >> representing virtual-to-physical mappings?
+
+We wanted a fast access to page table entries via their virtual address, but
+we decided against an array because most entries would have been empty.
+Therefore a hash was used which allows fast access and insertion.
 
 		       PAGING TO AND FROM DISK
 		       =======================
@@ -59,20 +112,58 @@ We are using a hash map to find pages via their virtual address. Addresses are r
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+static struct block * swap_device;	/* Block device */
+static struct lock swap_lock;		/* Access lock */
+
+static block_sector_t free_list;	/* Points to the first free sector */
+static block_sector_t unused;		/* Points to the first unused sector */
+
+/* Entry in an empty slot */
+struct free_slot
+{
+	block_sector_t next;	/* Pointer to the next free slot */
+};
+
+static struct list frame_list;	/* Global frame table */
+static struct lock frame_lock;	/* A lock for the frame table */
+
+/* An entry in the global farme table */
+struct frame_entry
+{
+	void * frame; /* A pointer to the physical frame */
+	struct page * page; /* A pointer to the page data on this frame */
+	struct thread * owner; /* Owning thread */
+
+	struct list_elem elem;
+};
+
 ---- ALGORITHMS ----
 
 >> B2: When a frame is required but none is free, some frame must be
 >> evicted.  Describe your code for choosing a frame to evict.
 
+We implemented the Clock algorithm as described by A. Tanenbaum.
+It consists of a circular list, where one frame is inspected at a time.
+If the frame is accessed its access bit is set to 0 and the next frame will be
+inspected. If the accessed bit is 0 then the frame is evicted.
+Our circular list is implemented as the standard Pintos list and we pop at the front
+and push to the back.
+
 >> B3: When a process P obtains a frame that was previously used by a
 >> process Q, how do you adjust the page table (and any other data
 >> structures) to reflect the frame Q no longer has?
+
+Every frame has a pointer to its entry in the owning thread's page table.
+On frame eviction the state of this page is set to either ON_SWAP or ON_DISK.
+After eviction the frame entry is updated with the new owner information.
+The frame table is locked during this whole operation.
 
 >> B4: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
 
-When the page fault occurs 512 bytes below the current stack pointer we decide to extend the stack segment until that page.
+When the page fault occurs 512 bytes below the current stack pointer we decide 
+to extend the stack segment until that page.
 
 ---- SYNCHRONIZATION ----
 
@@ -81,21 +172,40 @@ When the page fault occurs 512 bytes below the current stack pointer we decide t
 >> textbook for an explanation of the necessary conditions for
 >> deadlock.)
 
+When a programm is loaded or a file is mapped into memory we crate new page table
+entries and insert them into the thread's page table. On a page fault we search
+the page table for information about the page that faulted and swap the data in,
+read from file or create a new page on stack growth.
+The process of frame eviction is answered in B2 and B3.
+Page tables are per-thread and do not need synchronization. Shared ressources like
+the frame table and the swap disks are synchronized with a few global locks to 
+prevent deadlocks.
+
 >> B6: A page fault in process P can cause another process Q's frame
 >> to be evicted.  How do you ensure that Q cannot access or modify
 >> the page during the eviction process?  How do you avoid a race
 >> between P evicting Q's frame and Q faulting the page back in?
+
+Global locks ftw.
 
 >> B7: Suppose a page fault in process P causes a page to be read from
 >> the file system or swap.  How do you ensure that a second process Q
 >> cannot interfere by e.g. attempting to evict the frame while it is
 >> still being read in?
 
+See B6.
+
 >> B8: Explain how you handle access to paged-out pages that occur
 >> during system calls.  Do you use page faults to bring in pages (as
 >> in user programs), or do you have a mechanism for "locking" frames
 >> into physical memory, or do you use some other design?  How do you
 >> gracefully handle attempted accesses to invalid virtual addresses?
+
+We use page faults to handle accesses during system calls. When there is a
+page fault at an user address and the current thread has a page table entry for 
+the faulting address we consider this as user page fault and proceed as we would
+in the user context. If the access is out of the bounds of a user process or if 
+there is no page table entry we exit the process with exit value -1.
 
 ---- RATIONALE ----
 
@@ -106,6 +216,9 @@ When the page fault occurs 512 bytes below the current stack pointer we decide t
 >> where your design falls along this continuum and why you chose to
 >> design it this way.
 
+We decided to use one lock for the frame table and one for the swap disk.
+This makes implementation easy at the cost of parallelism.
+
 			 MEMORY MAPPED FILES
 			 ===================
 
@@ -115,14 +228,44 @@ When the page fault occurs 512 bytes below the current stack pointer we decide t
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+/* A kernel thread or user process. */
+struct thread
+{
+	//...
+
+	struct list mappedfiles;            /* A list of memory mapped files*/
+    mapid_t mapid;                      /* Last used # for mm files */
+
+    struct hash pages;                  /* A hash of used pages */
+    void * stack_bound;                 /* Address of the lowest stack page */
+}
+
+/* A memory-mapped file */
+struct mapped_file
+{
+  mapid_t mapping;          /* mmap-id of the mmapped file */
+  void *start_addr;         /* start address of the file */
+  int size;                 /* size of the file */
+  struct list_elem elem;    /* List element */
+};
+
 ---- ALGORITHMS ----
 
 >> C2: Describe how memory mapped files integrate into your virtual
 >> memory subsystem.  Explain how the page fault and eviction
 >> processes differ between swap pages and other pages.
 
+When a file is mmapped the pages are inserted like they are on an executable load.
+We store a pointer to the file and the file offset for pages backed by a file.
+This allows easy reading from and writing to the file on a fault and eviction 
+respectively.
+
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
+
+When the insertion into the page table returns that the page table entry already
+exists we return -1 for the system call after reverting the changes to the page
+table.
 
 ---- RATIONALE ----
 
@@ -132,6 +275,13 @@ When the page fault occurs 512 bytes below the current stack pointer we decide t
 >> that much of their implementation can be shared.  Explain why your
 >> implementation either does or does not share much of the code for
 >> the two situations.
+
+Both use the same mechanism to add entries to the page table.
+The difference is the error case. When a call to mmap fails it just returns -1
+and the user program may continue. In the case of executable loading a failure 
+is much more severe, causing all resources to be freed and the thread to be exited.
+Because of the different error handling we decided to keep the implementation
+for these two semantics apart.
 
 			   SURVEY QUESTIONS
 			   ================

@@ -8,15 +8,16 @@
 #include "threads/vaddr.h"
 #include "threads/synch.h"
 
-static struct block * swap_device;
-static struct lock swap_lock;
+static struct block * swap_device;	/* Block device */
+static struct lock swap_lock;		/* Access lock */
 
-static block_sector_t free_list;
-static block_sector_t unused;
+static block_sector_t free_list;	/* Points to the first free sector */
+static block_sector_t unused;		/* Points to the first unused sector */
 
+/* Entry in an empty slot */
 struct free_slot
 {
-	block_sector_t next;
+	block_sector_t next;	/* Pointer to the next free slot */
 };
 
 void

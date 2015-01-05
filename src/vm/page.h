@@ -8,6 +8,7 @@
 #include "lib/kernel/list.h"
 #include "lib/kernel/hash.h"
 
+/* States of a page */
 enum page_state
 {
 	FRAMED,						/* Framed page */
@@ -15,6 +16,7 @@ enum page_state
 	ON_SWAP						/* page in swap */
 };
 
+/* Origins of a page */
 enum page_origin
 {
 	STACK,						/* page comes from stack */
@@ -22,23 +24,18 @@ enum page_origin
 	MMAPPED_FILE				/* page comes from mm-file */
 };
 
-struct page_table
-{
-	struct hash pages;
-};
-
-
+/* Page data, entry in a page table */
 struct page
 {
-	void * vaddr;
-	int size;
+	void * vaddr;					/* Pointer to the virtual page */
+	int size;						/* Number of bytes */
 	enum page_state state;
 	enum page_origin origin;
 	block_sector_t swap_slot;		/* When state is ON_SWAP */
 	struct file * f;				/* When state is ON_FILE */
-	int f_offset;
-	bool writable;
-	struct frame_entry * fe;
+	int f_offset;					/* Offset in the file */
+	bool writable;					/* Access control */
+	struct frame_entry * fe;		/* Pointer to frame table entry */
 
 	struct list_elem l_elem;			/* List element */
 	struct hash_elem h_elem;			/* List element */

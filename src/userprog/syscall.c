@@ -463,6 +463,21 @@ mmap (int fd, void *addr)
 
 		if (!mmfile_add_to_page_table (reopen_file, offset, page_read_bytes, addr))
 		{
+			int size = offset;
+			addr = mmfile->start_addr;
+			while (size > 0)
+			{
+				struct page * p = page_get_entry_for_vaddr (addr);
+
+				if (p->state == FRAMED)
+					frame_free (p->fe);
+				page_destroy (p);
+
+				int page_read_bytes = size < PGSIZE ? size : PGSIZE;
+				size -= page_read_bytes;
+				addr += PGSIZE;
+			}
+
 			free (mmfile);
 			return -1;
 		}

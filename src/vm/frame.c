@@ -14,8 +14,8 @@
 
 static void evict_frame(struct frame_entry * fe, bool skip_swap);
 
-static struct list frame_list;
-static struct lock frame_lock;
+static struct list frame_list;	/* Global frame table */
+static struct lock frame_lock;	/* A lock for the frame table */
 
 void
 frame_init(void)

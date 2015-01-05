@@ -55,6 +55,7 @@ struct child_data
   struct list_elem elem;    /* List element */
 };
 
+/* A memory-mapped file */
 struct mapped_file
 {
   mapid_t mapping;          /* mmap-id of the mmapped file */
@@ -154,8 +155,8 @@ struct thread
     struct list mappedfiles;            /* A list of memory mapped files*/
     mapid_t mapid;                      /* Last used # for mm files */
 
-    struct hash pages;
-    void * stack_bound;
+    struct hash pages;                  /* A hash of used pages */
+    void * stack_bound;                 /* Address of the lowest stack page */
 #endif
 
     /* Owned by thread.c. */
