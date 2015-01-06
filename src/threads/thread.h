@@ -42,6 +42,8 @@ enum thread_status
 struct thread_file 
   {
     struct file * fdfile;   /* Pointer to kernel data structure */
+    struct dir * fddir;     /* Pointer to kernel data structure */
+    bool is_dir;
     int fd;                 /* File descriptor passed to the program */
     struct list_elem elem;  /* List element */
   };
