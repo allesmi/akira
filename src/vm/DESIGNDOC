@@ -127,7 +127,7 @@ struct free_slot
 static struct list frame_list;	/* Global frame table */
 static struct lock frame_lock;	/* A lock for the frame table */
 
-/* An entry in the global farme table */
+/* An entry in the global frame table */
 struct frame_entry
 {
 	void * frame; /* A pointer to the physical frame */
