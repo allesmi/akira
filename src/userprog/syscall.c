@@ -17,6 +17,7 @@
 #include "devices/input.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "filesys/directory.h"
 
 static void syscall_handler (struct intr_frame *);
 static void sys_halt (void);
@@ -394,6 +395,62 @@ syscall_handler (struct intr_frame *f)
 			mapid_t mapping = *((int *)f->esp + 1);
 			munmap(mapping);
 
+			break;
+		}
+		case SYS_CHDIR:
+		{
+			break;
+		}
+		case SYS_MKDIR:
+		{
+			break;
+		}
+		case SYS_READDIR:
+		{
+			if(!is_valid_user_pointer((int *) f->esp + 1))
+			{
+				f->eax = false;
+				break;	
+			}
+
+			int fd = *((int *) f->esp + 1);
+
+			char * name = *((char **) f->esp + 1);
+			if (name == NULL || !is_valid_user_pointer ((const void *) name))
+			{
+				f->eax = false;
+				break;
+			}
+
+			struct thread_file * current_tf = get_thread_file (fd);	
+
+			if (current_tf == NULL || !current_tf->is_dir)
+			{
+				f->eax = false;
+				break;
+			}	
+
+			f->eax = dir_readdir (current_tf->fddir, name);
+
+			break;
+		}
+		case SYS_ISDIR:
+		{
+			if(!is_valid_user_pointer((int *) f->esp + 1))
+				f->eax = false;
+
+			int fd = *((int *) f->esp + 1);
+			struct thread_file * current_tf = get_thread_file (fd);	
+
+			if (current_tf == NULL)
+				f->eax = false;
+
+			f->eax = current_tf->is_dir;
+
+			break;
+		}
+		case SYS_INUMBER:
+		{
 			break;
 		}
 	}
