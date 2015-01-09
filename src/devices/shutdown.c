@@ -103,6 +103,11 @@ shutdown_power_off (void)
       http://forum.osdev.org/viewtopic.php?t=16990  */
   outw( 0xB004, 0x0 | 0x2000 );
 
+  /* After upgrading to QEMU 2.1.6 (as part of the upgrade to Fedora 21)
+     the acpi shutdown has changed. Using the code of above forum thread
+     with a couple of tweaks the following instruction was derived */
+  outw(0x604, 0 | 0x2000);
+
   /* This is a special power-off sequence supported by Bochs and
      QEMU, but not by physical hardware. */
   for (p = s; *p != '\0'; p++)
