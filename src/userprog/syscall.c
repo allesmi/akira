@@ -11,13 +11,15 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "filesys/filesys.h"
+#include "filesys/directory.h"
+#include "filesys/inode.h"
 #include "threads/thread.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
 #include "devices/input.h"
 #include "vm/page.h"
 #include "vm/frame.h"
-#include "filesys/directory.h"
+
 
 static void syscall_handler (struct intr_frame *);
 static void sys_halt (void);
@@ -451,6 +453,31 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_INUMBER:
 		{
+			if(!is_valid_user_pointer((int *) f->esp + 1))
+			{
+				f->eax = false;	
+				break;
+			}
+				
+			int fd = *((int *) f->esp + 1);
+
+			struct thread_file * current_tf = get_thread_file (fd);	
+
+			if (current_tf == NULL)
+			{
+				f->eax = false;
+				break;
+			}
+
+			if (current_tf->is_dir)
+			{
+				f->eax = inode_get_inumber (dir_get_inode (current_tf->fddir));
+			}
+			else
+			{
+				f->eax = inode_get_inumber (file_get_inode (current_tf->fdfile));
+			}
+
 			break;
 		}
 	}
