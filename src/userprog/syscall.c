@@ -27,30 +27,30 @@ bool mmfile_add_to_page_table (struct file * file, int ofs, int size, void * add
 mapid_t mmap (int fd, void *addr);
 void munmap (mapid_t mapping);
 struct thread_file * get_thread_file (int fd);
-static char *get_syscall_name(int syscall_nr);
+static char *get_syscall_name (int syscall_nr);
 struct lock syscall_lock;	/* A lock for system calls */
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-  lock_init(&syscall_lock);
+  lock_init (&syscall_lock);
 }
 
 static bool
 is_valid_user_pointer (const void * charlie)
 {
-	return is_user_vaddr (charlie) && page_get_entry_for_vaddr(charlie) != NULL;
+	return is_user_vaddr (charlie) && page_get_entry_for_vaddr (charlie) != NULL;
 }
 
 static bool
-is_valid_user_pointer_range(const void * charlie, unsigned size)
+is_valid_user_pointer_range (const void * charlie, unsigned size)
 {
 	unsigned i;
 
-	for(i = (unsigned)charlie; i < (unsigned)charlie + size; i += PGSIZE)
+	for (i = (unsigned)charlie; i < (unsigned) charlie + size; i += PGSIZE)
 	{
-		if(!is_valid_user_pointer((const void *)i))
+		if (!is_valid_user_pointer ((const void *) i))
 		{
 			return 0;
 		}
@@ -63,7 +63,7 @@ static void
 userprog_fail (struct intr_frame *f)
 {
 	f->eax = -1;
-	syscall_exit(-1);
+	syscall_exit (-1);
 }
 
 static void
@@ -141,6 +141,7 @@ syscall_handler (struct intr_frame *f)
 
 			if(!is_valid_user_pointer((unsigned *) f->esp + 2))
 				userprog_fail (f);
+
 			unsigned initial_size = *((unsigned *) f->esp + 2);
 			lock_acquire (&syscall_lock);
 			bool ret = filesys_create (file, initial_size);
@@ -175,10 +176,10 @@ syscall_handler (struct intr_frame *f)
 				userprog_fail (f);
 
 			struct thread_file * tf = malloc(sizeof (struct thread_file));
-			struct file *file;
 
 			lock_acquire (&syscall_lock);
-			file = filesys_open (file_name);
+
+			struct file *file = filesys_open (file_name);
 
 			if(file == NULL)
 			{
@@ -187,8 +188,11 @@ syscall_handler (struct intr_frame *f)
 			}
 			else
 			{
-				tf->fdfile = file;
 
+				//check if dir please tell me how how
+
+				tf->fdfile = file;
+				tf->is_dir = false;
 				tf->fd = current->last_fd;
 				current->last_fd++;
 
@@ -210,7 +214,7 @@ syscall_handler (struct intr_frame *f)
 			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
 
-			if (current_tf != NULL)
+			if (current_tf != NULL && !current_tf->is_dir)
 				f->eax = file_length (current_tf->fdfile);
 
 			lock_release (&syscall_lock);
@@ -241,7 +245,7 @@ syscall_handler (struct intr_frame *f)
 			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
 
-			if (current_tf != NULL)
+			if (current_tf != NULL && !current_tf->is_dir)
 			{
 				f->eax = file_read (current_tf->fdfile, buf, size);
 			}
@@ -286,7 +290,7 @@ syscall_handler (struct intr_frame *f)
 			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
 
-			if (current_tf != NULL)
+			if (current_tf != NULL && !current_tf->is_dir)
 			{
 				f->eax = file_write (current_tf->fdfile, buf, size);
 			}
@@ -313,7 +317,7 @@ syscall_handler (struct intr_frame *f)
 			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
 
-			if (current_tf != NULL)
+			if (current_tf != NULL && !current_tf->is_dir)
 				file_seek (current_tf->fdfile, position);
 
 			lock_release (&syscall_lock);
@@ -329,7 +333,7 @@ syscall_handler (struct intr_frame *f)
 			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
 
-			if (current_tf != NULL)
+			if (current_tf != NULL && !current_tf->is_dir)
 				f->eax = file_tell (current_tf->fdfile);
 
 			lock_release (&syscall_lock);
@@ -348,7 +352,16 @@ syscall_handler (struct intr_frame *f)
 			if (current_tf != NULL)
 			{
 				list_remove (&current_tf->elem);
-				file_close (current_tf->fdfile);
+
+				if (current_tf->is_dir)
+				{
+					dir_close (current_tf->fddir);
+				}
+				else
+				{
+					file_close (current_tf->fdfile);
+				}	
+				
 				free (current_tf);
 			}
 

@@ -184,7 +184,15 @@ process_exit (void)
     struct list_elem *e = list_pop_back(&cur->thread_files);
     struct thread_file *tf = list_entry(e, struct thread_file, elem);
 
-    file_close(tf->fdfile);
+    if (tf->is_dir)
+    {
+      dir_close (tf->fddir);
+    }
+    else
+    {
+      file_close(tf->fdfile);
+    }
+      
     free(tf);
   }
 
