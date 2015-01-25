@@ -395,7 +395,7 @@ syscall_handler (struct intr_frame *f)
 
 			f->eax = mmap(fd, addr);
 
-			if (f->eax != -1)
+			if ((signed)f->eax != -1)
 				thread_current()->mapid++;
 			break;
 		}
