@@ -76,6 +76,20 @@ cache_write(block_sector_t sector, const void *buffer)
 	lock_release(&cache_lock);
 }
 
+void
+cache_flush(void)
+{
+	lock_acquire(&cache_lock);
+
+	int i;
+	for(i = 0; i < CACHE_SIZE; i++)
+	{
+		evict_cache_entry(i);
+	}
+
+	lock_release(&cache_lock);
+}
+
 static int
 cache_entry_by_sector(block_sector_t sector)
 {
