@@ -111,9 +111,6 @@ evict_frame(struct frame_entry * fe, bool skip_swap)
 {
 	struct page * p = fe->page;
 	
-	if(fe->owner != NULL)
-		pagedir_clear_page(fe->owner->pagedir, p->vaddr);
-	
 	if(p->origin == STACK || (p->origin == EXECUTABLE && p->writable))
 	{
 		if(!skip_swap)
@@ -134,6 +131,10 @@ evict_frame(struct frame_entry * fe, bool skip_swap)
 	{
 		p->state = ON_DISK;
 	}
+	
+	if(fe->owner != NULL)
+		pagedir_clear_page(fe->owner->pagedir, p->vaddr);
+
 	if(debug)
 		printf("Evicting physical frame %p from virtual address %p owned by %d\n", fe->frame, fe->page->vaddr, fe->owner->tid);
 
