@@ -9,6 +9,7 @@
 #include "lib/kernel/bitmap.h"
 #include "threads/thread.h"
 #include "threads/malloc.h"
+#include "devices/timer.h"
 
 struct cache_entry cache_data[CACHE_SIZE];
 struct bitmap * cache_bitmap;
@@ -18,6 +19,7 @@ void * cache;
 static void evict_cache_entry(size_t i);
 static int next_free_entry(void);
 static int cache_entry_by_sector(block_sector_t sector);
+static void flush_thread(void * aux);
 
 void
 cache_init(void)
@@ -36,6 +38,8 @@ cache_init(void)
 	cache = malloc(CACHE_SIZE * BLOCK_SECTOR_SIZE);
 	if(cache == NULL)
 		PANIC("Unable to allocate buffer cache");
+
+	// thread_create("cache_flush", PRI_DEFAULT, flush_thread, NULL);
 }
 
 void
@@ -85,6 +89,7 @@ cache_flush(void)
 	for(i = 0; i < CACHE_SIZE; i++)
 	{
 		evict_cache_entry(i);
+		bitmap_set(cache_bitmap, i, false);
 	}
 
 	lock_release(&cache_lock);
@@ -110,7 +115,10 @@ evict_cache_entry(size_t i)
 	ASSERT(cache_data[i].sector < block_size(fs_device));
 
 	if(cache_data[i].dirty)
+	{
 		block_write(fs_device, cache_data[i].sector, cache + (i * BLOCK_SECTOR_SIZE));
+		cache_data[i].dirty = false;
+	}
 }
 
 static int
@@ -148,4 +156,24 @@ next_free_entry(void)
 	}
 
 	PANIC("Buffer cache is full and we are not able to evict");
+}
+
+static void
+flush_thread(void * aux UNUSED)
+{
+	int i = 0;
+
+	while(true)
+	{
+		lock_acquire(&cache_lock);
+		for(i = 0; i < CACHE_SIZE; i++)
+		{
+			if(cache_data[i].dirty)
+			{
+				evict_cache_entry(i);
+			}
+		}
+		lock_release(&cache_lock);
+		timer_msleep (5000);
+	}
 }
