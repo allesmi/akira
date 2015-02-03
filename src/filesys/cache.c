@@ -45,7 +45,9 @@ cache_init(void)
 void
 cache_read(block_sector_t sector, void *buffer)
 {
+	ASSERT(sector < 13104);
 	lock_acquire(&cache_lock);
+	bool from_cache = true;
 	int cache_index = cache_entry_by_sector(sector);
 	if(cache_index == -1)
 	{
@@ -53,30 +55,38 @@ cache_read(block_sector_t sector, void *buffer)
 		bitmap_set(cache_bitmap, cache_index, true);
 		cache_data[cache_index].sector = sector;
 		block_read(fs_device, sector, cache + cache_index * BLOCK_SECTOR_SIZE);
+		from_cache = false;
 	}
 	// printf("Adding cache entry for %d at %d\n", sector, cache_index);
 
 	cache_data[cache_index].accessed = true;
 	memcpy(buffer, cache + cache_index * BLOCK_SECTOR_SIZE, BLOCK_SECTOR_SIZE);
+	if(debug)
+		printf("Reading entry %d from sector %d from %s...\n", cache_index, cache_data[cache_index].sector, from_cache?"cache":"disk");
 	lock_release(&cache_lock);
 }
 
 void
 cache_write(block_sector_t sector, const void *buffer)
 {
+	ASSERT(sector < 13104);
 	lock_acquire(&cache_lock);
+	bool from_cache = true;
 	int cache_index = cache_entry_by_sector(sector);
 	if(cache_index == -1)
 	{
 		cache_index = next_free_entry();
 		bitmap_set(cache_bitmap, cache_index, true);
 		cache_data[cache_index].sector = sector;
+		from_cache = false;
 	}
 
 	cache_data[cache_index].accessed = true;
 	cache_data[cache_index].dirty = true;
 
 	memcpy(cache + cache_index * BLOCK_SECTOR_SIZE, buffer, BLOCK_SECTOR_SIZE);
+	if(debug)
+		printf("Writing to %d from %s...\n", cache_data[cache_index].sector, from_cache?"cache":"disk");
 	lock_release(&cache_lock);
 }
 
@@ -118,7 +128,13 @@ evict_cache_entry(size_t i)
 	{
 		block_write(fs_device, cache_data[i].sector, cache + (i * BLOCK_SECTOR_SIZE));
 		cache_data[i].dirty = false;
+		cache_data[i].accessed = false;
+		if(debug)
+			printf("Writing entry %d back to sector %d...\n", i, cache_data[i].sector);
 	}
+
+	if(debug)
+		printf("Evicting cache entry at %d (in thread %d)\n", i, thread_tid());
 }
 
 static int
