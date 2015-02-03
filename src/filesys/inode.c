@@ -1,6 +1,7 @@
 #include "filesys/inode.h"
 #include <list.h>
 #include <debug.h>
+#include <stddef.h>
 #include <round.h>
 #include <string.h>
 #include "filesys/filesys.h"
@@ -10,7 +11,7 @@
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
-
+#define DIRECTS 123
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
@@ -18,8 +19,17 @@ struct inode_disk
     block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
-    uint32_t unused[125];               /* Not used. */
+    // block_sector_t sectors[(BLOCK_SECTOR_SIZE - sizeof(block_sector_t) - sizeof(off_t) - sizeof(unsigned) - 2 * sizeof(block_sector_t))/sizeof(block_sector_t)];
+    block_sector_t sectors[DIRECTS];
+    block_sector_t i_inode;             /* Single-indirect inode */
+    block_sector_t di_inode;            /* Double-indirect inode */
   };
+
+/* On-disk indirect inode */
+struct indirect_inode_disk
+{
+  block_sector_t sectors[BLOCK_SECTOR_SIZE / (sizeof(block_sector_t))];
+};
 
 /* Returns the number of sectors to allocate for an inode SIZE
    bytes long. */
@@ -40,16 +50,86 @@ struct inode
     struct inode_disk data;             /* Inode content. */
   };
 
+static bool
+is_direct(off_t pos)
+{
+  return 0 <= pos && pos < DIRECTS * BLOCK_SECTOR_SIZE;
+}
+
+static bool
+is_single_indirect(off_t pos)
+{
+  return DIRECTS * BLOCK_SECTOR_SIZE <= pos &&
+    pos < DIRECTS * BLOCK_SECTOR_SIZE + 128 * BLOCK_SECTOR_SIZE;
+}
+
+static bool
+is_double_indirect(off_t pos)
+{
+  return DIRECTS * BLOCK_SECTOR_SIZE + 128 * BLOCK_SECTOR_SIZE <= pos &&
+    pos < DIRECTS * BLOCK_SECTOR_SIZE + 128 * BLOCK_SECTOR_SIZE + 128 * 128 * BLOCK_SECTOR_SIZE;
+}
+
 /* Returns the block device sector that contains byte offset POS
    within INODE.
    Returns -1 if INODE does not contain data for a byte at offset
    POS. */
 static block_sector_t
-byte_to_sector (const struct inode *inode, off_t pos) 
+byte_to_sector (struct inode *inode, off_t pos) 
 {
   ASSERT (inode != NULL);
-  if (pos < inode->data.length)
-    return inode->data.start + pos / BLOCK_SECTOR_SIZE;
+  block_sector_t * t;
+
+  if (is_direct(pos) || is_single_indirect(pos) || is_double_indirect(pos))
+  {
+    if(is_direct(pos))
+    {
+      block_sector_t t;
+      if(inode->data.sectors[pos / BLOCK_SECTOR_SIZE] == 0)
+      {
+        if(!free_map_allocate(1, &t))
+          return -1;
+        inode->data.sectors[pos / BLOCK_SECTOR_SIZE] = t;
+      }
+      printf("D %d: Sector %d returned\n", pos, inode->data.sectors[pos / BLOCK_SECTOR_SIZE]);
+      return inode->data.sectors[pos / BLOCK_SECTOR_SIZE];
+    }
+    else if(is_single_indirect(pos))
+    {
+      int i = pos - DIRECTS * BLOCK_SECTOR_SIZE;
+      struct indirect_inode_disk id;
+
+      if(inode->data.i_inode == 0)
+      {
+        if(!free_map_allocate(1, &inode->data.i_inode))
+          return -1;
+
+        cache_write(inode->sector, &inode->data);
+      }
+
+      cache_read(inode->data.i_inode, &id);
+      t = &id.sectors[i / BLOCK_SECTOR_SIZE];
+      if(*t == 0)
+      {
+        free_map_allocate(1, t);
+      }
+      printf("SI: Return sector %d\n", *t);
+      return *t;
+    }
+    else if(is_double_indirect(pos))
+    {
+      return -1;
+    }
+    return -1;
+    // else if (pos >= sizeof(inode->data.sectors) * BLOCK_SECTOR_SIZE && pos < sizeof(inode->data.sectors) * BLOCK_SECTOR_SIZE + 128 * BLOCK_SECTOR_SIZE)
+    // {
+    //   return (pos - sizeof(inode->data.sectors) * BLOCK_SECTOR_SIZE) / BLOCK_SECTOR_SIZE;
+    // }
+    // else  /* TODO: Check that pos does not exceed max file size */
+    // {
+    //   return (pos - 2 * sizeof(inode->data.sectors) * BLOCK_SECTOR_SIZE - 128 * BLOCK_SECTOR_SIZE) / BLOCK_SECTOR_SIZE;
+    // }
+  }
   else
     return -1;
 }
@@ -76,8 +156,6 @@ inode_create (block_sector_t sector, off_t length)
   struct inode_disk *disk_inode = NULL;
   bool success = false;
 
-  ASSERT (length >= 0);
-
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
@@ -85,22 +163,22 @@ inode_create (block_sector_t sector, off_t length)
   disk_inode = calloc (1, sizeof *disk_inode);
   if (disk_inode != NULL)
     {
-      size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &disk_inode->start)) 
+
+      success = true;
+
+      size_t sectors = bytes_to_sectors(length);
+      int i;
+      for(i = 0; i < sectors; i++)
+      {
+        if(is_direct(i * BLOCK_SECTOR_SIZE))
         {
-          cache_write (sector, disk_inode);
-          if (sectors > 0) 
-            {
-              static char zeros[BLOCK_SECTOR_SIZE];
-              size_t i;
-              
-              for (i = 0; i < sectors; i++) 
-                cache_write (disk_inode->start + i, zeros);
-            }
-          success = true; 
-        } 
+           success &= free_map_allocate(1, &disk_inode->sectors[i]);
+        }
+      }
+      cache_write(sector, disk_inode);
+
       free (disk_inode);
     }
   return success;
