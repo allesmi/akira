@@ -20,6 +20,7 @@ static void evict_cache_entry(size_t i);
 static int next_free_entry(void);
 static int cache_entry_by_sector(block_sector_t sector);
 static void flush_thread(void * aux);
+static void load_thread(void * sector_);
 
 void
 cache_init(void)
@@ -39,7 +40,7 @@ cache_init(void)
 	if(cache == NULL)
 		PANIC("Unable to allocate buffer cache");
 
-	// thread_create("cache_flush", PRI_DEFAULT, flush_thread, NULL);
+	thread_create("cache_flush", PRI_DEFAULT, flush_thread, NULL);
 }
 
 void
@@ -47,6 +48,7 @@ cache_read(block_sector_t sector, void *buffer)
 {
 	ASSERT(sector < 13104);
 	lock_acquire(&cache_lock);
+	int next_sector = sector + 1;
 	bool from_cache = true;
 	int cache_index = cache_entry_by_sector(sector);
 	if(cache_index == -1)
@@ -63,6 +65,7 @@ cache_read(block_sector_t sector, void *buffer)
 	memcpy(buffer, cache + cache_index * BLOCK_SECTOR_SIZE, BLOCK_SECTOR_SIZE);
 	if(debug)
 		printf("Reading entry %d from sector %d from %s...\n", cache_index, cache_data[cache_index].sector, from_cache?"cache":"disk");
+	thread_create("cache_load", PRI_DEFAULT, load_thread, (void*)next_sector);
 	lock_release(&cache_lock);
 }
 
@@ -71,6 +74,7 @@ cache_write(block_sector_t sector, const void *buffer)
 {
 	ASSERT(sector < 13104);
 	lock_acquire(&cache_lock);
+	int next_sector = sector + 1;
 	bool from_cache = true;
 	int cache_index = cache_entry_by_sector(sector);
 	if(cache_index == -1)
@@ -87,6 +91,7 @@ cache_write(block_sector_t sector, const void *buffer)
 	memcpy(cache + cache_index * BLOCK_SECTOR_SIZE, buffer, BLOCK_SECTOR_SIZE);
 	if(debug)
 		printf("Writing to %d from %s...\n", cache_data[cache_index].sector, from_cache?"cache":"disk");
+	thread_create("cache_load", PRI_DEFAULT, load_thread, (void*)next_sector);
 	lock_release(&cache_lock);
 }
 
@@ -128,10 +133,11 @@ evict_cache_entry(size_t i)
 	{
 		block_write(fs_device, cache_data[i].sector, cache + (i * BLOCK_SECTOR_SIZE));
 		cache_data[i].dirty = false;
-		cache_data[i].accessed = false;
 		if(debug)
 			printf("Writing entry %d back to sector %d...\n", i, cache_data[i].sector);
 	}
+
+	cache_data[i].accessed = false;
 
 	if(debug)
 		printf("Evicting cache entry at %d (in thread %d)\n", i, thread_tid());
@@ -172,6 +178,22 @@ next_free_entry(void)
 	}
 
 	PANIC("Buffer cache is full and we are not able to evict");
+}
+
+static void
+load_thread(void * sector_)
+{
+	int sector = (int)sector_;
+
+	lock_acquire(&cache_lock);
+	if(cache_entry_by_sector(sector) == -1)
+	{
+		int cache_index = next_free_entry();
+		bitmap_set(cache_bitmap, cache_index, true);
+		cache_data[cache_index].sector = sector;
+		block_read(fs_device, sector, cache + cache_index * BLOCK_SECTOR_SIZE);
+	}
+	lock_release(&cache_lock);
 }
 
 static void
