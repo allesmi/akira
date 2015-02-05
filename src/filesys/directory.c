@@ -118,12 +118,14 @@ dir_resolve(const char * path)
       }
       else
       {
-        PANIC("Path '%s' contains a file", path);
+        // PANIC("Path '%s' contains a file", path);
+        break;
       }
     }
     else
     {
-      PANIC("Unable to find '%s'", path);
+      // PANIC("Unable to find '%s'", path);
+      break;
     }
   }
   free(path_copy);
