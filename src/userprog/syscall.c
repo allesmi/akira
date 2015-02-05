@@ -186,7 +186,6 @@ syscall_handler (struct intr_frame *f)
 			struct thread_file * tf = malloc(sizeof (struct thread_file));
 
 			lock_acquire (&syscall_lock);
-
 			struct file *file = filesys_open (file_name);
 
 			if(file == NULL)
@@ -439,6 +438,7 @@ syscall_handler (struct intr_frame *f)
 			struct dir * newdir = dir_resolve(file);
 			if(newdir != NULL)
 			{
+				dir_close(thread_current()->working_dir);
 				thread_current()->working_dir = newdir;
 				// dir_print(thread_current()->working_dir);
 				f->eax = true;
@@ -468,7 +468,7 @@ syscall_handler (struct intr_frame *f)
 				last_segment = file;
 			else
 				last_segment += 1;
-			filesys_create_dir(d, last_segment);
+			f->eax = filesys_create_dir(d, last_segment);
 			break;
 		}
 		case SYS_READDIR:

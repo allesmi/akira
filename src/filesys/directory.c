@@ -240,7 +240,8 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
  done:
-  dir_print(dir);
+  if(debug)
+    dir_print(dir);
   return success;
 }
 

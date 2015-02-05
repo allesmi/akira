@@ -88,9 +88,15 @@ filesys_open (const char *name)
 {
   struct dir *dir = dir_resolve(name);
   struct inode *inode = NULL;
+  char * last_segment = strrchr(name, '/');
+  if(last_segment == NULL)
+    last_segment = name;
+  else
+    last_segment += 1;
+
 
   if (dir != NULL)
-    dir_lookup (dir, name, &inode);
+    dir_lookup (dir, last_segment, &inode);
   // dir_close (dir);
 
   return file_open (inode);
@@ -104,7 +110,13 @@ bool
 filesys_remove (const char *name) 
 {
   struct dir *dir = dir_resolve(name);
-  bool success = dir != NULL && dir_remove (dir, name);
+  char * last_segment = strrchr(name, '/');
+  if(last_segment == NULL)
+    last_segment = name;
+  else
+    last_segment += 1;
+  
+  bool success = dir != NULL && dir_remove (dir, last_segment);
   // dir_close (dir); 
 
   return success;
