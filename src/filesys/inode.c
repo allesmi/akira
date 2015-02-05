@@ -11,7 +11,7 @@
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
-#define DIRECTS 123
+#define DIRECTS 121
 #define INDIRECTS (BLOCK_SECTOR_SIZE/(sizeof(block_sector_t)))
 #define MAX_SECTORS ((unsigned)(DIRECTS + INDIRECTS + INDIRECTS * INDIRECTS))
 
@@ -21,6 +21,8 @@ struct inode_disk
   {
     block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
+    block_sector_t parent;              /* Block of parent inode */
+    uint32_t is_dir;                    /* Positive, if this inode is a dir */
     unsigned magic;                     /* Magic number. */
     block_sector_t sectors[DIRECTS];    /* Direct pointers */
     block_sector_t i_inode;             /* Pointer to single-indirect inode */
@@ -57,7 +59,7 @@ struct inode
    Returns -1 if INODE does not contain data for a byte at offset
    POS. */
 static block_sector_t
-byte_to_sector (struct inode *inode, off_t pos) 
+byte_to_sector (struct inode *inode, off_t pos, bool extend) 
 {
   ASSERT (inode != NULL);
   block_sector_t * t;
@@ -68,6 +70,9 @@ byte_to_sector (struct inode *inode, off_t pos)
     {
       if(inode->data.sectors[sector_idx] == 0)
       {
+        if(!extend)
+          return -1;
+
         if(!free_map_allocate(1, &inode->data.sectors[sector_idx]))
           return -1;
       }
@@ -80,6 +85,9 @@ byte_to_sector (struct inode *inode, off_t pos)
 
       if(inode->data.i_inode == 0)
       {
+        if(!extend)
+          return -1;
+
         if(!free_map_allocate(1, &inode->data.i_inode))
           return -1;
 
@@ -90,6 +98,9 @@ byte_to_sector (struct inode *inode, off_t pos)
       t = &id.sectors[sector_idx];
       if(*t == 0)
       {
+        if(!extend)
+          return -1;
+
         if(!free_map_allocate(1, t))
           return -1;
 
@@ -104,6 +115,9 @@ byte_to_sector (struct inode *inode, off_t pos)
       // If the double-indirect inode is not yet allocated
       if(inode->data.di_inode == 0)
       {
+        if(!extend)
+          return -1;
+
         if(!free_map_allocate(1, &inode->data.di_inode))
           return -1;
 
@@ -116,6 +130,9 @@ byte_to_sector (struct inode *inode, off_t pos)
       cache_read(inode->data.di_inode, &did);
       if(did.sectors[di_idx] == 0)
       {
+        if(!extend)
+          return -1;
+
         if(!free_map_allocate(1, &did.sectors[di_idx]))
           return -1;
 
@@ -127,6 +144,9 @@ byte_to_sector (struct inode *inode, off_t pos)
       cache_read(did.sectors[di_idx], &id);
       if(id.sectors[i_idx] == 0)
       {
+        if(!extend)
+          return -1;
+
         if(!free_map_allocate(1, &id.sectors[i_idx]))
           return -1;
 
@@ -158,7 +178,7 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length, bool is_dir)
 {
   struct inode in;
   struct inode_disk *disk_inode = NULL;
@@ -168,7 +188,7 @@ inode_create (block_sector_t sector, off_t length)
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
 
-  ASSERT (length/BLOCK_SECTOR_SIZE < MAX_SECTORS);
+  ASSERT ((unsigned)length/BLOCK_SECTOR_SIZE < MAX_SECTORS);
 
   disk_inode = calloc (1, sizeof *disk_inode);
   if (disk_inode != NULL)
@@ -176,6 +196,7 @@ inode_create (block_sector_t sector, off_t length)
       in.sector = sector;
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
+      disk_inode->is_dir = is_dir;
 
       success = true;
 
@@ -190,36 +211,7 @@ inode_create (block_sector_t sector, off_t length)
       {
         /* This function has the side effect of allocating a sector 
         if the position is not found */
-        success &= byte_to_sector(&in, i * BLOCK_SECTOR_SIZE) != -1;
-        // if(i < DIRECTS)
-        // {
-        //    success &= free_map_allocate(1, &disk_inode->sectors[i]);
-        // }
-        // else if(i == DIRECTS)
-        // {
-        //   if(!free_map_allocate(1, &disk_inode->i_inode))
-        //     success = false;
-
-        //   cache_read(disk_inode->i_inode, &id);
-        //   unsigned idx = i - DIRECTS;
-        //   success &= free_map_allocate(1, &id.sectors[idx]);
-        // }
-        // else if(i < DIRECTS + INDIRECTS)
-        // {
-        //   cache_read(disk_inode->i_inode, &id);
-        //   unsigned idx = i - DIRECTS;
-        //   success &= free_map_allocate(1, &id.sectors[idx]);
-        // }
-        // else if(i == DIRECTS + INDIRECTS)
-        // {
-        //   if(!free_map_allocate(1, &disk_inode->di_inode))
-        //     success = false;
-
-        //   cache_read(disk_inode->di_inode, &id);
-        //   unsigned idx = i - DIRECTS - INDIRECTS;
-
-        //   PANIC("Jetzt reichts aber");
-        // }
+        success &= (byte_to_sector(&in, i * BLOCK_SECTOR_SIZE, true) != -1);
       }
       if(success)
       {
@@ -331,8 +323,12 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
 
   while (size > 0) 
     {
+      block_sector_t sector_idx;
       /* Disk sector to read, starting byte offset within sector. */
-      block_sector_t sector_idx = byte_to_sector (inode, offset);
+      if(offset <= inode->data.length)
+        sector_idx = byte_to_sector (inode, offset, true);
+      else
+        return 0;
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
@@ -395,7 +391,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   while (size > 0) 
     {
       /* Sector to write, starting byte offset within sector. */
-      block_sector_t sector_idx = byte_to_sector (inode, offset);
+      block_sector_t sector_idx = byte_to_sector (inode, offset, true);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
@@ -473,4 +469,18 @@ off_t
 inode_length (const struct inode *inode)
 {
   return inode->data.length;
+}
+
+/* Returns the sector of the parent inode */
+block_sector_t
+inode_parent (const struct inode *inode)
+{
+  return inode->data.parent;
+}
+
+/* Returns true if this inode is a directory */
+bool
+inode_is_dir(const struct inode *inode)
+{
+  return inode->data.is_dir > 0;
 }

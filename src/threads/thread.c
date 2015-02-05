@@ -16,6 +16,9 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
+#ifdef FILESYS
+#include "filesys/directory.h"
+#endif
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -109,6 +112,7 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  initial_thread->working_dir = NULL;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -294,6 +298,20 @@ thread_create (const char *name, int priority,
       t->priority = calculate_recent_cpu(t->recent_cpu, t->niceness);
     }
   }
+
+#ifdef FILESYS
+  if(tid > 2)
+  {
+    if(thread_current()->working_dir == NULL)
+    {
+      t->working_dir = dir_open_root();
+    }
+    else
+    {
+      t->working_dir = thread_current()->working_dir;
+    }
+  }
+#endif
 
   thread_print_info(t, "create");
 
@@ -690,7 +708,6 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->children);
   list_init(&t->mappedfiles);
   t->mapid = 0;
-
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);

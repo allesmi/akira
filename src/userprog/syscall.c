@@ -144,7 +144,7 @@ syscall_handler (struct intr_frame *f)
 
 			unsigned initial_size = *((unsigned *) f->esp + 2);
 			lock_acquire (&syscall_lock);
-			bool ret = filesys_create (file, initial_size);
+			bool ret = filesys_create (thread_current()->working_dir, file, initial_size);
 			lock_release (&syscall_lock);
 			f->eax = ret;
 
@@ -414,10 +414,12 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_CHDIR:
 		{
+			PANIC("chdir not yet implemented");
 			break;
 		}
 		case SYS_MKDIR:
 		{
+			PANIC("mkdir not yet implemented");
 			break;
 		}
 		case SYS_READDIR:

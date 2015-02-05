@@ -156,10 +156,15 @@ struct thread
 
     struct list mappedfiles;            /* A list of memory mapped files*/
     mapid_t mapid;                      /* Last used # for mm files */
-
+#endif
+#ifdef VM
     struct hash pages;                  /* A hash of used pages */
     void * stack_bound;                 /* Address of the lowest stack page */
 #endif
+#ifdef FILESYS
+    struct dir *working_dir;            /* Current working directory */
+#endif
+
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */

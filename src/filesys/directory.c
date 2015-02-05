@@ -5,6 +5,7 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
 
 /* A directory. */
 struct dir 
@@ -26,7 +27,7 @@ struct dir_entry
 bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
-  return inode_create (sector, entry_cnt * sizeof (struct dir_entry));
+  return inode_create (sector, entry_cnt * sizeof (struct dir_entry), true);
 }
 
 /* Opens and returns the directory for the given INODE, of which
@@ -81,6 +82,53 @@ struct inode *
 dir_get_inode (struct dir *dir) 
 {
   return dir->inode;
+}
+
+struct dir *
+dir_resolve(const char * path)
+{
+  if(path == NULL || strlen(path) == 0)
+    return NULL;
+
+  struct dir * d = thread_current()->working_dir;
+  char *token, *save_ptr, *path_copy = malloc(strlen(path));
+  struct inode * inode;
+
+  strlcpy(path_copy, path, strlen(path));
+
+  if(path[0] == '/')
+    d = dir_open_root();
+
+  token = strtok_r(path_copy, "/", &save_ptr);
+  for(; token != NULL; token = strtok_r(NULL, "/", &save_ptr))
+  {
+    if(strcmp(token, ".") == 0)
+    {
+      continue;
+    }
+    else if(strcmp(token, "..") == 0)
+    {
+      d = dir_open(inode_open(inode_parent(dir_get_inode(d))));
+    }
+    else if(dir_lookup(d, token, &inode))
+    {
+      if(inode_is_dir(inode))
+      {
+        d = dir_open(inode);
+      }
+      else
+      {
+        PANIC("Path '%s' contains a file", path);
+      }
+    }
+    else
+    {
+      PANIC("Unable to find '%s'", path);
+    }
+  }
+  free(path_copy);
+
+  return d;
 }
 
 /* Searches DIR for a file with the given NAME.
