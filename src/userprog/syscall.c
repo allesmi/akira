@@ -414,10 +414,38 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_CHDIR:
 		{
+			if(!is_valid_user_pointer((char **) f->esp + 1))
+			{
+				f->eax = false;
+				break;	
+			}
+
+			char * file = *((char **) f->esp + 1);
+
+			if (file == NULL || !is_valid_user_pointer ((const void *) file) || strlen(file) == 0)
+			{
+				f->eax = false;
+				break;
+			}
+
 			break;
 		}
 		case SYS_MKDIR:
 		{
+			if(!is_valid_user_pointer((char **) f->esp + 1))
+			{
+				f->eax = false;
+				break;	
+			}
+
+			char * file = *((char **) f->esp + 1);
+
+			if (file == NULL || !is_valid_user_pointer ((const void *) file) || strlen(file) == 0)
+			{
+				f->eax = false;
+				break;
+			}
+
 			break;
 		}
 		case SYS_READDIR:
