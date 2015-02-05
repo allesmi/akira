@@ -89,12 +89,11 @@ dir_resolve(const char * path)
 {
   if(path == NULL || strlen(path) == 0)
     return NULL;
-
   struct dir * d = thread_current()->working_dir;
-  char *token, *save_ptr, *path_copy = malloc(strlen(path));
+  char *token, *save_ptr, *path_copy = malloc(strlen(path) + 1);
   struct inode * inode;
 
-  strlcpy(path_copy, path, strlen(path));
+  strlcpy(path_copy, path, strlen(path)+1);
 
   if(d == NULL || path[0] == '/')
     d = dir_open_root();
@@ -144,7 +143,6 @@ dir_resolve(const char * path)
     }
   }
   free(path_copy);
-
   return d;
 }
 

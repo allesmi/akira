@@ -59,6 +59,8 @@ Alexander Miller <alles.mil@gmail.com>
 >> structure, and what advantages and disadvantages does your
 >> structure have, compared to a multilevel index?
 
+Our inodes have direct pointers and one single-indirect and one double-indirect
+pointer.
 			    SUBDIRECTORIES
 			    ==============
 
@@ -72,6 +74,10 @@ Alexander Miller <alles.mil@gmail.com>
 
 >> B2: Describe your code for traversing a user-specified path.  How
 >> do traversals of absolute and relative paths differ?
+
+When the path starts with a '/', the root node is set as the start node, 
+otherwise the current working directory. The path is then tokenized for 
+occurences of '/' to get the next file or directory name.
 
 ---- SYNCHRONIZATION ----
 
@@ -90,6 +96,9 @@ Alexander Miller <alles.mil@gmail.com>
 >> B6: Explain why you chose to represent the current directory of a
 >> process the way you did.
 
+We represent the current working directory as a struct dir * in the thread
+data structure.
+
 			     BUFFER CACHE
 			     ============
 
@@ -104,9 +113,19 @@ Alexander Miller <alles.mil@gmail.com>
 >> C2: Describe how your cache replacement algorithm chooses a cache
 >> block to evict.
 
+We use accessed and dirty bits and implemented a clock algorithm similiar to
+frame eviction.
+
 >> C3: Describe your implementation of write-behind.
+On cache_init we start a thread that writes sectors in the cache back to disk in
+an interval of 5 seconds.
 
 >> C4: Describe your implementation of read-ahead.
+We struggled with the implementation of read-ahead. The first approach was to
+create a new thread for every asynchronous load. This filled up memory on 
+certain IO intensive tests. A single thread which is notified via semaphore of 
+a new sector to load turned out to be to slow and timeouts occured. For now
+we skipped the implementation of read-ahead.
 
 ---- SYNCHRONIZATION ----
 
@@ -114,13 +133,24 @@ Alexander Miller <alles.mil@gmail.com>
 >> buffer cache block, how are other processes prevented from evicting
 >> that block?
 
+We use a lock for the whole buffer cache.
+
 >> C6: During the eviction of a block from the cache, how are other
 >> processes prevented from attempting to access the block?
+
+Again, the global lock prove to be the most convenient solution.
 
 ---- RATIONALE ----
 
 >> C7: Describe a file workload likely to benefit from buffer caching,
 >> and workloads likely to benefit from read-ahead and write-behind.
+
+Several processes operating on the same sectors of a file benefit from buffer
+caching.
+Sequential scans in a file benefit from read-ahead.
+Sectors which are updated often benefit from write-behind (for example on file 
+growth, where the block pointers are updated often when large chunks are written
+to the end of the file).
 
 			   SURVEY QUESTIONS
 			   ================

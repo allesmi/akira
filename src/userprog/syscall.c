@@ -151,8 +151,9 @@ syscall_handler (struct intr_frame *f)
 				last_segment = file;
 			else
 				last_segment += 1;
-
+			dir_print(d);
 			bool ret = filesys_create (d, last_segment, initial_size);
+
 			lock_release (&syscall_lock);
 			f->eax = ret;
 
@@ -443,7 +444,6 @@ syscall_handler (struct intr_frame *f)
 				// dir_print(thread_current()->working_dir);
 				f->eax = true;
 			}
-
 			break;
 		}
 		case SYS_MKDIR:
@@ -731,6 +731,16 @@ get_syscall_name(int syscall_nr)
 			return "SYS_MMAP";
 		case SYS_MUNMAP:
 			return "SYS_MUNMAP";
+		case SYS_CHDIR:
+			return "SYS_CHDIR";
+		case SYS_MKDIR:
+			return "SYS_MKDIR";
+		case SYS_READDIR:
+			return "SYS_READDIR";
+		case SYS_ISDIR:
+			return "SYS_ISDIR";
+		case SYS_INUMBER:
+			return "SYS_INUMBER";
 		default:
 			return "Unknown syscall";
 	}
