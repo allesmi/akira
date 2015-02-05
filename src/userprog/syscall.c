@@ -146,7 +146,7 @@ syscall_handler (struct intr_frame *f)
 			lock_acquire (&syscall_lock);
 
 			struct dir * d = dir_resolve(file);
-			char * last_segment = strchr(file, '/');
+			char * last_segment = strrchr(file, '/');
 			if(last_segment == NULL)
 				last_segment = file;
 			else
@@ -440,6 +440,7 @@ syscall_handler (struct intr_frame *f)
 			if(newdir != NULL)
 			{
 				thread_current()->working_dir = newdir;
+				// dir_print(thread_current()->working_dir);
 				f->eax = true;
 			}
 
@@ -462,8 +463,11 @@ syscall_handler (struct intr_frame *f)
 			}
 
 			struct dir * d = dir_resolve(file);
-			char * last_segment = strchr(file, '/');
-			if(last_segment == NULL) last_segment = file;
+			char * last_segment = strrchr(file, '/');
+			if(last_segment == NULL)
+				last_segment = file;
+			else
+				last_segment += 1;
 			filesys_create_dir(d, last_segment);
 			break;
 		}

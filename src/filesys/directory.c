@@ -96,36 +96,51 @@ dir_resolve(const char * path)
 
   strlcpy(path_copy, path, strlen(path));
 
-  if(path[0] == '/')
+  if(d == NULL || path[0] == '/')
     d = dir_open_root();
 
   token = strtok_r(path_copy, "/", &save_ptr);
-  for(; token != NULL; token = strtok_r(NULL, "/", &save_ptr))
+  /* We made sure that the path is not empty. token is only NULL when it does 
+  not contain '/'. So we just try to change to the non empty dir name */
+  if(token == NULL) 
   {
-    if(strcmp(token, ".") == 0)
-    {
-      continue;
-    }
-    else if(strcmp(token, "..") == 0)
-    {
-      d = dir_open(inode_open(inode_parent(dir_get_inode(d))));
-    }
-    else if(dir_lookup(d, token, &inode))
+    if(dir_lookup(d, path, &inode))
     {
       if(inode_is_dir(inode))
       {
         d = dir_open(inode);
       }
+    }
+  }
+  else
+  {
+    for(; token != NULL; token = strtok_r(NULL, "/", &save_ptr))
+    {
+      if(strcmp(token, ".") == 0)
+      {
+        continue;
+      }
+      else if(strcmp(token, "..") == 0)
+      {
+        d = dir_open(inode_open(inode_parent(dir_get_inode(d))));
+      }
+      else if(dir_lookup(d, token, &inode))
+      {
+        if(inode_is_dir(inode))
+        {
+          d = dir_open(inode);
+        }
+        else
+        {
+          // PANIC("Path '%s' contains a file", path);
+          break;
+        }
+      }
       else
       {
-        // PANIC("Path '%s' contains a file", path);
+        // PANIC("Unable to find '%s'", path);
         break;
       }
-    }
-    else
-    {
-      // PANIC("Unable to find '%s'", path);
-      break;
     }
   }
   free(path_copy);
@@ -225,6 +240,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
  done:
+  dir_print(dir);
   return success;
 }
 
@@ -283,4 +299,16 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         } 
     }
   return false;
+}
+
+void
+dir_print(struct dir * dir)
+{
+  struct dir * ldir = dir_reopen(dir);
+  char name[NAME_MAX + 1];
+  printf("Files in %p\n", ldir->inode);
+  while(dir_readdir(ldir, name))
+  {
+    printf("- %s\n", name);
+  }
 }

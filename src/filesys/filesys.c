@@ -86,12 +86,12 @@ filesys_create_dir (struct dir * parent, const char *name)
 struct file *
 filesys_open (const char *name)
 {
-  struct dir *dir = dir_open_root ();
+  struct dir *dir = dir_resolve(name);
   struct inode *inode = NULL;
 
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
-  dir_close (dir);
+  // dir_close (dir);
 
   return file_open (inode);
 }
@@ -103,9 +103,9 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  struct dir *dir = dir_open_root ();
+  struct dir *dir = dir_resolve(name);
   bool success = dir != NULL && dir_remove (dir, name);
-  dir_close (dir); 
+  // dir_close (dir); 
 
   return success;
 }
