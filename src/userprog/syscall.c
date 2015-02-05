@@ -144,7 +144,15 @@ syscall_handler (struct intr_frame *f)
 
 			unsigned initial_size = *((unsigned *) f->esp + 2);
 			lock_acquire (&syscall_lock);
-			bool ret = filesys_create (thread_current()->working_dir, file, initial_size);
+
+			struct dir * d = dir_resolve(file);
+			char * last_segment = strchr(file, '/');
+			if(last_segment == NULL)
+				last_segment = file;
+			else
+				last_segment += 1;
+
+			bool ret = filesys_create (d, last_segment, initial_size);
 			lock_release (&syscall_lock);
 			f->eax = ret;
 
@@ -414,12 +422,49 @@ syscall_handler (struct intr_frame *f)
 		}
 		case SYS_CHDIR:
 		{
-			PANIC("chdir not yet implemented");
+			if(!is_valid_user_pointer((char **) f->esp + 1))
+			{
+				f->eax = false;
+				break;	
+			}
+
+			char * file = *((char **) f->esp + 1);
+
+			if (file == NULL || !is_valid_user_pointer ((const void *) file) || strlen(file) == 0)
+			{
+				f->eax = false;
+				break;
+			}
+
+			struct dir * newdir = dir_resolve(file);
+			if(newdir != NULL)
+			{
+				thread_current()->working_dir = newdir;
+				f->eax = true;
+			}
+
 			break;
 		}
 		case SYS_MKDIR:
 		{
-			PANIC("mkdir not yet implemented");
+			if(!is_valid_user_pointer((char **) f->esp + 1))
+			{
+				f->eax = false;
+				break;	
+			}
+
+			char * file = *((char **) f->esp + 1);
+
+			if (file == NULL || !is_valid_user_pointer ((const void *) file) || strlen(file) == 0)
+			{
+				f->eax = false;
+				break;
+			}
+
+			struct dir * d = dir_resolve(file);
+			char * last_segment = strchr(file, '/');
+			if(last_segment == NULL) last_segment = file;
+			filesys_create_dir(d, last_segment);
 			break;
 		}
 		case SYS_READDIR:
