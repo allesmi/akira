@@ -16,11 +16,15 @@ struct bitmap * cache_bitmap;
 struct lock cache_lock;
 void * cache;
 
+// block_sector_t load_sector;
+// struct semaphore load_sema;
+
+
 static void evict_cache_entry(size_t i);
 static int next_free_entry(void);
 static int cache_entry_by_sector(block_sector_t sector);
 static void flush_thread(void * aux);
-static void load_thread(void * sector_);
+// static void load_thread(void * sector_);
 
 void
 cache_init(void)
@@ -29,6 +33,9 @@ cache_init(void)
 	if(cache_bitmap == NULL)
 		PANIC("Unable to create cache bitmap");
 	lock_init(&cache_lock);
+
+	// load_sector = 0;
+	// sema_init(&load_sema, 1);
 
 	int i;
 	for(i = 0; i < CACHE_SIZE; i++)
@@ -41,6 +48,7 @@ cache_init(void)
 		PANIC("Unable to allocate buffer cache");
 
 	thread_create("cache_flush", PRI_DEFAULT, flush_thread, NULL);
+	// thread_create("cache_load", PRI_DEFAULT, load_thread, NULL);
 }
 
 void
@@ -48,9 +56,9 @@ cache_read(block_sector_t sector, void *buffer)
 {
 	ASSERT(sector < 13104);
 	lock_acquire(&cache_lock);
-	int next_sector = sector + 1;
 	bool from_cache = true;
 	int cache_index = cache_entry_by_sector(sector);
+
 	if(cache_index == -1)
 	{
 		cache_index = next_free_entry();
@@ -65,8 +73,10 @@ cache_read(block_sector_t sector, void *buffer)
 	memcpy(buffer, cache + cache_index * BLOCK_SECTOR_SIZE, BLOCK_SECTOR_SIZE);
 	if(debug)
 		printf("Reading entry %d from sector %d from %s...\n", cache_index, cache_data[cache_index].sector, from_cache?"cache":"disk");
-	thread_create("cache_load", PRI_DEFAULT, load_thread, (void*)next_sector);
 	lock_release(&cache_lock);
+	// sema_down(&load_sema);
+	// load_sector = sector + 1 % CACHE_SIZE;
+	// sema_up(&load_sema);
 }
 
 void
@@ -74,9 +84,9 @@ cache_write(block_sector_t sector, const void *buffer)
 {
 	ASSERT(sector < 13104);
 	lock_acquire(&cache_lock);
-	int next_sector = sector + 1;
 	bool from_cache = true;
 	int cache_index = cache_entry_by_sector(sector);
+
 	if(cache_index == -1)
 	{
 		cache_index = next_free_entry();
@@ -91,8 +101,10 @@ cache_write(block_sector_t sector, const void *buffer)
 	memcpy(cache + cache_index * BLOCK_SECTOR_SIZE, buffer, BLOCK_SECTOR_SIZE);
 	if(debug)
 		printf("Writing to %d from %s...\n", cache_data[cache_index].sector, from_cache?"cache":"disk");
-	thread_create("cache_load", PRI_DEFAULT, load_thread, (void*)next_sector);
 	lock_release(&cache_lock);
+	// sema_down(&load_sema);
+	// load_sector = sector + 1 % CACHE_SIZE;
+	// sema_up(&load_sema);
 }
 
 void
@@ -180,21 +192,39 @@ next_free_entry(void)
 	PANIC("Buffer cache is full and we are not able to evict");
 }
 
-static void
-load_thread(void * sector_)
-{
-	int sector = (int)sector_;
+// static void
+// load_thread(void * aux UNUSED)
+// {
+// 	block_sector_t sector;
+// 	while(true)
+// 	{
+// 		sema_down(&load_sema);
+// 		sector = load_sector;
+// 		load_sector = -1;
+// 		sema_up(&load_sema);
 
-	lock_acquire(&cache_lock);
-	if(cache_entry_by_sector(sector) == -1)
-	{
-		int cache_index = next_free_entry();
-		bitmap_set(cache_bitmap, cache_index, true);
-		cache_data[cache_index].sector = sector;
-		block_read(fs_device, sector, cache + cache_index * BLOCK_SECTOR_SIZE);
-	}
-	lock_release(&cache_lock);
-}
+// 		lock_acquire(&cache_lock);
+// 		if(sector != -1 && cache_entry_by_sector(sector) == -1)
+// 		{
+// 			int cache_index = next_free_entry();
+// 			bitmap_set(cache_bitmap, cache_index, true);
+// 			cache_data[cache_index].sector = sector;
+// 			block_read(fs_device, sector, cache + cache_index * BLOCK_SECTOR_SIZE);
+// 		}
+// 		lock_release(&cache_lock);
+// 	}
+// 	// int sector = (int)sector_;
+
+// 	// lock_acquire(&cache_lock);
+// 	// if(cache_entry_by_sector(sector) == -1)
+// 	// {
+// 	// 	int cache_index = next_free_entry();
+// 	// 	bitmap_set(cache_bitmap, cache_index, true);
+// 	// 	cache_data[cache_index].sector = sector;
+// 	// 	block_read(fs_device, sector, cache + cache_index * BLOCK_SECTOR_SIZE);
+// 	// }
+// 	// lock_release(&cache_lock);
+// }
 
 static void
 flush_thread(void * aux UNUSED)
