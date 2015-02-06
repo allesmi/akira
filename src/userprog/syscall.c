@@ -195,20 +195,35 @@ syscall_handler (struct intr_frame *f)
 			struct thread_file * tf = malloc(sizeof (struct thread_file));
 
 			lock_acquire (&syscall_lock);
-			struct file *file = filesys_open (file_name);
 
-			if(file == NULL)
+			bool valid_dir = false;
+
+			if(!valid_dir)
 			{
-				f->eax = -1;
-				lock_release (&syscall_lock);
+				struct file *file = filesys_open (file_name);
+
+				if(file == NULL)
+				{
+					f->eax = -1;
+					lock_release (&syscall_lock);
+				}
+				else
+				{
+					tf->fdfile = file;
+					tf->is_dir = false;
+					tf->fd = current->last_fd;
+					current->last_fd++;
+
+					list_push_back (&current->thread_files, &tf->elem);
+					lock_release (&syscall_lock);
+
+					f->eax = tf->fd;
+				}
 			}
-			else
+			else if(valid_dir)
 			{
-
-				//check if dir please tell me how how
-
-				tf->fdfile = file;
-				tf->is_dir = false;
+				tf->fddir = dir_resolve (file_name);
+				tf->is_dir = true;
 				tf->fd = current->last_fd;
 				current->last_fd++;
 
@@ -216,6 +231,11 @@ syscall_handler (struct intr_frame *f)
 				lock_release (&syscall_lock);
 
 				f->eax = tf->fd;
+			}
+			else
+			{
+				lock_release (&syscall_lock);
+				f->eax = -1;
 			}
 
 			break;
@@ -265,6 +285,10 @@ syscall_handler (struct intr_frame *f)
 			{
 				f->eax = file_read (current_tf->fdfile, buf, size);
 			}
+			else if (current_tf != NULL && current_tf->is_dir)
+			{
+				f->eax = dir_readdir (current_tf->fddir, buf);
+			}
 			else if(fd == STDIN_FILENO)
 			{
 				unsigned i;
@@ -276,6 +300,7 @@ syscall_handler (struct intr_frame *f)
 				}
 
 				f->eax = size;
+
 			}
 			// printf("\tRead %d bytes\n", f->eax);
 
