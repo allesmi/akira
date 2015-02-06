@@ -299,10 +299,51 @@ inode_close (struct inode *inode)
       /* Deallocate blocks if removed. */
       if (inode->removed) 
         {
+          struct inode_disk in;
+          struct indirect_inode_disk s_in, d_in;
+          cache_read(inode->sector, &in);
+          unsigned i, k;
+
+          /* Deallocate direct blocks ... */
+          for(i = 0; i < DIRECTS; i++)
+          {
+            if(in.sectors[i] != 0)
+              free_map_release(in.sectors[i], 1);
+          }
+
+          /* ... single-indirect blocks ... */
+          if(in.i_inode != 0)
+          {
+            cache_read(in.i_inode, &s_in);
+            for(i = 0; i < INDIRECTS; i++)
+            {
+              if(s_in.sectors[i] != 0)
+                free_map_release(s_in.sectors[i], 1);
+            }
+            free_map_release(in.i_inode, 1);
+          }
+
+          /* ... and double-indirect blocks. */
+          if(in.di_inode != 0)
+          {
+            cache_read(in.di_inode, &d_in);
+            for(i = 0; i < INDIRECTS; i++)
+            {
+              if(d_in.sectors[i] != 0)
+              {
+                cache_read(d_in.sectors[i], &s_in);
+                for(k = 0; k < INDIRECTS; k++)
+                {
+                  if(s_in.sectors[k] != 0)
+                    free_map_release(s_in.sectors[k], 1);
+                }
+                free_map_release(d_in.sectors[i], 1);
+              }
+            }
+            free_map_release(in.di_inode, 1);
+          }
+          
           free_map_release (inode->sector, 1);
-          // TODO
-          // free_map_release (inode->data.start,
-          //                   bytes_to_sectors (inode->data.length)); 
         }
 
       free (inode); 
