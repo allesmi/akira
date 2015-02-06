@@ -238,11 +238,11 @@ inode_open (block_sector_t sector)
   struct inode *inode;
 
   /* Check whether this inode is already open. */
-  for (e = list_begin (&open_inodes); sector != ROOT_DIR_SECTOR && e != list_end (&open_inodes);
+  for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
        e = list_next (e)) 
     {
       inode = list_entry (e, struct inode, elem);
-      if (inode->sector == sector) 
+      if (inode->sector != ROOT_DIR_SECTOR && inode->sector == sector) 
         {
           inode_reopen (inode);
           return inode; 
@@ -303,7 +303,7 @@ inode_close (struct inode *inode)
           struct indirect_inode_disk s_in, d_in;
           cache_read(inode->sector, &in);
           unsigned i, k;
-
+          printf("About to remove\n");
           /* Deallocate direct blocks ... */
           for(i = 0; i < DIRECTS; i++)
           {

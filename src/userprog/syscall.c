@@ -427,7 +427,8 @@ syscall_handler (struct intr_frame *f)
 
 				if (current_tf->is_dir)
 				{
-					dir_close (current_tf->fddir);
+					if(dir_get_inode(current_tf->fddir) != dir_get_inode(thread_current()->working_dir))
+						dir_close (current_tf->fddir);
 				}
 				else
 				{
@@ -553,7 +554,7 @@ syscall_handler (struct intr_frame *f)
 			}
 
 			int fd = *((int *) f->esp + 1);
-			char  *name = (char *) (f->esp + 2);
+			char  *name = *((char **) f->esp + 2);
 
 			struct thread_file * current_tf = get_thread_file (fd);	
 
@@ -564,7 +565,7 @@ syscall_handler (struct intr_frame *f)
 			}	
 
 			f->eax = dir_readdir (current_tf->fddir, name);
-			//printf("nameeeeeee %s\n", name);
+
 			break;
 		}
 		case SYS_ISDIR:

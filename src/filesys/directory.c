@@ -152,11 +152,17 @@ dir_resolve_deep (const char * path, struct inode ** out_inode)
   if(path == NULL || strlen(path) == 0)
     return -1;
 
+  if(debug)
+    printf("Resolving path '%s'\n", path);
+
   struct dir * d = thread_current()->working_dir;
   char *token, *save_ptr, *path_copy;
   struct inode * inode = NULL;
 
   path_copy = malloc(strlen(path) + 1);
+  if(path_copy == NULL) 
+    return -1;
+
   strlcpy(path_copy, path, strlen(path)+1);
 
   if(d == NULL || path[0] == '/')
@@ -191,12 +197,14 @@ dir_resolve_deep (const char * path, struct inode ** out_inode)
       {
         if(out_inode != NULL)
           *out_inode = NULL;
+        free(path_copy);
         return -1;
       }
     }
   }
   if(out_inode != NULL)
     *out_inode = inode;
+  free(path_copy);
   return 0;
 }
 
