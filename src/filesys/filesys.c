@@ -112,8 +112,9 @@ filesys_remove (const char *name)
   struct inode * inode;
   if(dir_resolve_deep(name, &inode) == 0)
   {
-    // file exists.
-    struct dir * parent = dir_open(inode_open(inode_parent(inode)));
+    block_sector_t ps = inode_parent(inode);
+    struct inode * pi = inode_open(ps);
+    struct dir * parent = dir_open(pi);
     char * last_segment = strrchr(name, '/');
     if(last_segment == NULL)
       last_segment = name;

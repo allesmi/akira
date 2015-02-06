@@ -161,7 +161,8 @@ dir_resolve_deep (const char * path, struct inode ** out_inode)
 
   if(d == NULL || path[0] == '/')
     d = dir_open_root();
-
+  
+  inode = dir_get_inode(d);
   for(token = strtok_r(path_copy, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr))
   {
     if(dir_lookup(d, token, &inode))
