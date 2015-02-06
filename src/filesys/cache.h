@@ -12,7 +12,7 @@
 /* Metadata for one entry in the buffer cache */
 struct cache_entry
 {
-	struct lock l;		/* Lock for this cache entry */
+	struct lock l;			/* Lock for this cache entry */
 	block_sector_t sector; 	/* Sector that backs this entry */
 	bool dirty; 			/* Written recently */
 	bool accessed; 			/* Read/written recently */

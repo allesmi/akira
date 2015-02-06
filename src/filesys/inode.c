@@ -368,7 +368,6 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
-
   while (size > 0) 
     {
       block_sector_t sector_idx;
@@ -435,7 +434,6 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
                           offset+size;
   if (inode->deny_write_cnt)
     return 0;
-
   while (size > 0) 
     {
       /* Sector to write, starting byte offset within sector. */

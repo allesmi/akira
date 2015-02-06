@@ -11,10 +11,10 @@
 #include "threads/malloc.h"
 #include "devices/timer.h"
 
-struct cache_entry cache_data[CACHE_SIZE];
-struct bitmap * cache_bitmap;
-struct lock cache_lock;
-void * cache;
+struct cache_entry cache_data[CACHE_SIZE];	/* Data about cache entries*/
+struct bitmap * cache_bitmap;				/* Free map */
+struct lock cache_lock;						/* Global lock for buffer cache */
+void * cache;								/* The cache itself */
 
 // block_sector_t load_sector;
 // struct semaphore load_sema;

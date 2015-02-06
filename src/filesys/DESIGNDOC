@@ -16,6 +16,8 @@ Alexander Miller <alles.mil@gmail.com>
 >> If you have any preliminary comments on your submission, notes for the
 >> TAs, or extra credit, please give them here.
 
+We did not implement synchronization on directories or files.
+
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
@@ -29,13 +31,41 @@ Alexander Miller <alles.mil@gmail.com>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+#define DIRECTS 121
+#define INDIRECTS (BLOCK_SECTOR_SIZE/(sizeof(block_sector_t)))
+#define MAX_SECTORS ((unsigned)(DIRECTS + INDIRECTS + INDIRECTS * INDIRECTS))
+
+/* On-disk inode.
+   Must be exactly BLOCK_SECTOR_SIZE bytes long. */
+struct inode_disk
+  {
+    // ...
+    off_t length;                       /* File size in bytes. */
+    block_sector_t parent;              /* Block of parent inode */
+    uint32_t is_dir;                    /* Positive, if this inode is a dir */
+    unsigned magic;                     /* Magic number. */
+    block_sector_t sectors[DIRECTS];    /* Direct pointers */
+    block_sector_t i_inode;             /* Pointer to single-indirect inode */
+    block_sector_t di_inode;            /* Pointer to double-indirect inode */
+  };
+
+/* On-disk indirect inode */
+struct indirect_inode_disk
+{
+  block_sector_t sectors[INDIRECTS];
+};
+
 >> A2: What is the maximum size of a file supported by your inode
 >> structure?  Show your work.
+
+We support a maximum of 8516096 bytes (~ 8.1MB).
 
 ---- SYNCHRONIZATION ----
 
 >> A3: Explain how your code avoids a race if two processes attempt to
 >> extend a file at the same time.
+
+We do not consider this race.
 
 >> A4: Suppose processes A and B both have file F open, both
 >> positioned at end-of-file.  If A reads and B writes F at the same
@@ -44,12 +74,17 @@ Alexander Miller <alles.mil@gmail.com>
 >> nonzero data, A is not allowed to see all zeros.  Explain how your
 >> code avoids this race.
 
+Thanks to the coarse locking of our buffer cache this race is avoided.
+A cannot read a sector until B is done with writing to it.
+
 >> A5: Explain how your synchronization design provides "fairness".
 >> File access is "fair" if readers cannot indefinitely block writers
 >> or vice versa.  That is, many processes reading from a file cannot
 >> prevent forever another process from writing the file, and many
 >> processes writing to a file cannot prevent another process forever
 >> from reading the file.
+
+We still rely on external synchronization.
 
 ---- RATIONALE ----
 
@@ -70,6 +105,21 @@ pointer.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+/* An open file owned by a process */
+struct thread_file 
+  {
+	// ...
+    struct dir * fddir;     /* Pointer to kernel data structure */
+    bool is_dir;
+  };
+
+struct thread
+  {
+  	// ...
+    struct dir *working_dir;            /* Current working directory */
+
+  };
+
 ---- ALGORITHMS ----
 
 >> B2: Describe your code for traversing a user-specified path.  How
@@ -86,10 +136,15 @@ occurences of '/' to get the next file or directory name.
 >> should succeed, as should only one of two simultaneous attempts to
 >> create a file with the same name, and so on.
 
+We do not have support for locks on directories.
+
 >> B5: Does your implementation allow a directory to be removed if it
 >> is open by a process or if it is in use as a process's current
 >> working directory?  If so, what happens to that process's future
 >> file system operations?  If not, how do you prevent it?
+
+A process may not remove its working directory. We let every attempt to remove
+that inode fail.
 
 ---- RATIONALE ----
 
@@ -108,6 +163,22 @@ data structure.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+#define CACHE_SIZE 64
+
+/* Metadata for one entry in the buffer cache */
+struct cache_entry
+{
+	struct lock l;			/* Lock for this cache entry */
+	block_sector_t sector; 	/* Sector that backs this entry */
+	bool dirty; 			/* Written recently */
+	bool accessed; 			/* Read/written recently */
+};
+
+struct cache_entry cache_data[CACHE_SIZE];	/* Data about cache entries*/
+struct bitmap * cache_bitmap;				/* Free map */
+struct lock cache_lock;						/* Global lock for buffer cache */
+void * cache;								/* The cache itself */
+
 ---- ALGORITHMS ----
 
 >> C2: Describe how your cache replacement algorithm chooses a cache
@@ -117,10 +188,12 @@ We use accessed and dirty bits and implemented a clock algorithm similiar to
 frame eviction.
 
 >> C3: Describe your implementation of write-behind.
+
 On cache_init we start a thread that writes sectors in the cache back to disk in
 an interval of 5 seconds.
 
 >> C4: Describe your implementation of read-ahead.
+
 We struggled with the implementation of read-ahead. The first approach was to
 create a new thread for every asynchronous load. This filled up memory on 
 certain IO intensive tests. A single thread which is notified via semaphore of 
@@ -138,7 +211,7 @@ We use a lock for the whole buffer cache.
 >> C6: During the eviction of a block from the cache, how are other
 >> processes prevented from attempting to access the block?
 
-Again, the global lock prove to be the most convenient solution.
+Again, the global lock proved to be the most convenient solution.
 
 ---- RATIONALE ----
 
