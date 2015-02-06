@@ -29,6 +29,7 @@ void munmap (mapid_t mapping);
 struct thread_file * get_thread_file (int fd);
 static char *get_syscall_name (int syscall_nr);
 struct lock syscall_lock;	/* A lock for system calls */
+bool readdir (int fd, char* name);
 
 void
 syscall_init (void) 
@@ -196,6 +197,20 @@ syscall_handler (struct intr_frame *f)
 
 			lock_acquire (&syscall_lock);
 
+			if(file_name[0] == '.')
+		 		{
+		 			tf->fddir = dir_resolve(file_name);
+					tf->is_dir = true;
+					tf->fd = current->last_fd;
+					current->last_fd++;
+
+					list_push_back (&current->thread_files, &tf->elem);
+					lock_release (&syscall_lock);
+
+					f->eax = tf->fd;
+					break;	
+		 	}
+
 			struct inode * dir_or_file_node;
 
 			int resolve_status = dir_resolve_deep (file_name, &dir_or_file_node);
@@ -208,19 +223,32 @@ syscall_handler (struct intr_frame *f)
 			else
 		 	{
 
-			if(!inode_is_dir (dir_or_file_node))
-			{
-				struct file *file = filesys_open (file_name);
+				if(!inode_is_dir (dir_or_file_node))
+				{
+					struct file *file = filesys_open (file_name);
 
-				if(file == NULL)
-				{
-					f->eax = -1;
-					lock_release (&syscall_lock);
+					if(file == NULL)
+					{
+						f->eax = -1;
+						lock_release (&syscall_lock);
+					}
+					else
+					{
+						tf->fdfile = file;
+						tf->is_dir = false;
+						tf->fd = current->last_fd;
+						current->last_fd++;
+
+						list_push_back (&current->thread_files, &tf->elem);
+						lock_release (&syscall_lock);
+
+						f->eax = tf->fd;
+					}
 				}
-				else
+				else if(inode_is_dir (dir_or_file_node))
 				{
-					tf->fdfile = file;
-					tf->is_dir = false;
+					tf->fddir = dir_open(dir_or_file_node);
+					tf->is_dir = true;
 					tf->fd = current->last_fd;
 					current->last_fd++;
 
@@ -229,24 +257,11 @@ syscall_handler (struct intr_frame *f)
 
 					f->eax = tf->fd;
 				}
-			}
-			else if(inode_is_dir (dir_or_file_node))
-			{
-				tf->fddir = dir_open(dir_or_file_node);
-				tf->is_dir = true;
-				tf->fd = current->last_fd;
-				current->last_fd++;
-
-				list_push_back (&current->thread_files, &tf->elem);
-				lock_release (&syscall_lock);
-
-				f->eax = tf->fd;
-			}
-			else
-			{
-				lock_release (&syscall_lock);
-				f->eax = -1;
-			}
+				else
+				{
+					lock_release (&syscall_lock);
+					f->eax = -1;
+				}
 		 	}
 
 			break;
@@ -540,13 +555,7 @@ syscall_handler (struct intr_frame *f)
 			}
 
 			int fd = *((int *) f->esp + 1);
-
-			char * name = *((char **) f->esp + 1);
-			if (name == NULL || !is_valid_user_pointer ((const void *) name))
-			{
-				f->eax = false;
-				break;
-			}
+			char  *name = (char *) (f->esp + 2);
 
 			struct thread_file * current_tf = get_thread_file (fd);	
 
@@ -557,7 +566,7 @@ syscall_handler (struct intr_frame *f)
 			}	
 
 			f->eax = dir_readdir (current_tf->fddir, name);
-
+			//printf("nameeeeeee %s\n", name);
 			break;
 		}
 		case SYS_ISDIR:
