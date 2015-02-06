@@ -51,7 +51,7 @@ filesys_create (struct dir * parent, const char *name, off_t initial_size)
   block_sector_t inode_sector = 0;
   bool success = (parent != NULL
                   && free_map_allocate (1, &inode_sector)
-                  && inode_create (inode_sector, initial_size, false, NULL)
+                  && inode_create (inode_sector, initial_size, false, dir_get_inode(parent))
                   && dir_add (parent, name, inode_sector));
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
@@ -109,17 +109,21 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  struct dir *dir = dir_resolve(name);
-  char * last_segment = strrchr(name, '/');
-  if(last_segment == NULL)
-    last_segment = name;
-  else
-    last_segment += 1;
+  struct inode * inode;
+  if(dir_resolve_deep(name, &inode) == 0)
+  {
+    // file exists.
+    struct dir * parent = dir_open(inode_open(inode_parent(inode)));
+    char * last_segment = strrchr(name, '/');
+    if(last_segment == NULL)
+      last_segment = name;
+    else
+      last_segment += 1;
 
-  bool success = dir != NULL && dir_remove (dir, last_segment);
-  // dir_close (dir); 
-
-  return success;
+    bool ret = dir_remove (parent, last_segment);
+    return ret;
+  }
+  return false;
 }
 
 /* Formats the file system. */

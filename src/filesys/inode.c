@@ -197,13 +197,12 @@ inode_create (block_sector_t sector, off_t length, bool is_dir, struct inode * p
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
       disk_inode->is_dir = is_dir;
-      if(is_dir)
+      if(parent != NULL)
       {
-        if(parent != NULL)
-          disk_inode->parent = parent->sector;
-        else
-          disk_inode->parent = sector;
+        disk_inode->parent = parent->sector;
       }
+      else
+        disk_inode->parent = sector;
       
       success = true;
 

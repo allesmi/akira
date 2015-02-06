@@ -146,6 +146,45 @@ dir_resolve(const char * path)
   return d;
 }
 
+int
+dir_resolve_deep (const char * path, struct inode ** out_inode)
+{
+  if(path == NULL || strlen(path) == 0)
+    return -1;
+
+  struct dir * d = thread_current()->working_dir;
+  char *token, *save_ptr, *path_copy;
+  struct inode * inode = NULL;
+
+  path_copy = malloc(strlen(path) + 1);
+  strlcpy(path_copy, path, strlen(path)+1);
+
+  if(d == NULL || path[0] == '/')
+    d = dir_open_root();
+
+  for(token = strtok_r(path_copy, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr))
+  {
+    if(dir_lookup(d, token, &inode))
+    {
+      if(inode_is_dir(inode))
+      {
+        if(d != thread_current()->working_dir)
+          dir_close(d);
+        d = dir_open(inode);
+      }
+    }
+    else
+    {
+      if(out_inode != NULL)
+        *out_inode = NULL;
+      return -1;
+    }
+  }
+  if(out_inode != NULL)
+    *out_inode = inode;
+  return 0;
+}
+
 /* Searches DIR for a file with the given NAME.
    If successful, returns true, sets *EP to the directory entry
    if EP is non-null, and sets *OFSP to the byte offset of the
@@ -300,14 +339,33 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
   return false;
 }
 
+bool
+dir_is_empty(struct dir * dir)
+{
+  off_t ofs;
+  struct dir_entry e;
+
+  for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
+       ofs += sizeof e) 
+    if (e.in_use)
+      return false;
+
+  return true;
+}
+
 void
 dir_print(struct dir * dir)
 {
   struct dir * ldir = dir_reopen(dir);
+  struct inode * inode;
   char name[NAME_MAX + 1];
-  printf("Files in %p\n", ldir->inode);
+
+  printf("Files in %p -> %d\n", ldir->inode, inode_parent(ldir->inode));
   while(dir_readdir(ldir, name))
   {
-    printf("- %s\n", name);
+    dir_lookup(ldir, name, &inode);
+    bool is_dir = inode_is_dir(inode);
+    block_sector_t parent = inode_parent(inode);
+    printf("- %s %s -> %d\n", is_dir?"d":"", name, parent);
   }
 }

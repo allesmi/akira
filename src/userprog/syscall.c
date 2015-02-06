@@ -145,13 +145,21 @@ syscall_handler (struct intr_frame *f)
 			unsigned initial_size = *((unsigned *) f->esp + 2);
 			lock_acquire (&syscall_lock);
 
+			if(dir_resolve_deep(file, NULL) == 0)
+			{
+				f->eax = false;
+				lock_release(&syscall_lock);
+				break;
+			}
+
 			struct dir * d = dir_resolve(file);
 			char * last_segment = strrchr(file, '/');
 			if(last_segment == NULL)
 				last_segment = file;
 			else
 				last_segment += 1;
-			dir_print(d);
+			// dir_print(d);
+			/* Check for existance */
 			bool ret = filesys_create (d, last_segment, initial_size);
 
 			lock_release (&syscall_lock);
@@ -436,14 +444,24 @@ syscall_handler (struct intr_frame *f)
 				break;
 			}
 
-			struct dir * newdir = dir_resolve(file);
-			if(newdir != NULL)
+			struct inode * inode;
+			if(dir_resolve_deep(file, &inode) != 0)
 			{
-				dir_close(thread_current()->working_dir);
-				thread_current()->working_dir = newdir;
-				// dir_print(thread_current()->working_dir);
-				f->eax = true;
+				f->eax = false;
+				break;
 			}
+			else if(inode_is_dir(inode))
+			{
+				struct dir * newdir = dir_open(inode);
+				if(newdir != NULL)
+				{
+					dir_close(thread_current()->working_dir);
+					thread_current()->working_dir = newdir;
+					// dir_print(thread_current()->working_dir);
+					f->eax = true;
+				}
+			}
+
 			break;
 		}
 		case SYS_MKDIR:

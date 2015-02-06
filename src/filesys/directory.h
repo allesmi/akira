@@ -11,6 +11,8 @@
    retained, but much longer full path names must be allowed. */
 #define NAME_MAX 14
 
+/* Return values of */
+
 struct inode;
 
 /* Opening and closing directories. */
@@ -22,6 +24,8 @@ void dir_close (struct dir *);
 struct inode *dir_get_inode (struct dir *);
 
 struct dir *dir_resolve(const char * path);
+int dir_resolve_deep(const char *, struct inode **);
+bool dir_is_empty(struct dir * dir);
 
 /* Reading and writing. */
 bool dir_lookup (const struct dir *, const char *name, struct inode **);
