@@ -121,6 +121,9 @@ filesys_remove (const char *name)
     else
       last_segment += 1;
 
+    if(inode_is_dir(inode) && !dir_is_empty(dir_open(inode)))
+      return false;
+    
     bool ret = dir_remove (parent, last_segment);
     return ret;
   }
