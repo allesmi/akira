@@ -196,9 +196,19 @@ syscall_handler (struct intr_frame *f)
 
 			lock_acquire (&syscall_lock);
 
-			bool valid_dir = false;
+			struct inode * dir_or_file_node;
 
-			if(!valid_dir)
+			int resolve_status = dir_resolve_deep (file_name, &dir_or_file_node);
+
+			if (resolve_status == -1)
+			{
+				lock_release (&syscall_lock);
+				f->eax = -1;
+			}
+			else
+		 	{
+
+			if(!inode_is_dir (dir_or_file_node))
 			{
 				struct file *file = filesys_open (file_name);
 
@@ -220,9 +230,9 @@ syscall_handler (struct intr_frame *f)
 					f->eax = tf->fd;
 				}
 			}
-			else if(valid_dir)
+			else if(inode_is_dir (dir_or_file_node))
 			{
-				tf->fddir = dir_resolve (file_name);
+				tf->fddir = dir_open(dir_or_file_node);
 				tf->is_dir = true;
 				tf->fd = current->last_fd;
 				current->last_fd++;
@@ -237,6 +247,7 @@ syscall_handler (struct intr_frame *f)
 				lock_release (&syscall_lock);
 				f->eax = -1;
 			}
+		 	}
 
 			break;
 		}
@@ -330,7 +341,7 @@ syscall_handler (struct intr_frame *f)
 
 			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
-
+			
 			if (current_tf != NULL && !current_tf->is_dir)
 			{
 				f->eax = file_write (current_tf->fdfile, buf, size);
