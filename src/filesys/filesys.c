@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "filesys/file.h"
+#include "threads/thread.h"
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
 #include "filesys/directory.h"
@@ -112,6 +113,12 @@ filesys_remove (const char *name)
   struct inode * inode;
   if(dir_resolve_deep(name, &inode) == 0)
   {
+    if(inode == dir_get_inode(thread_current()->working_dir))
+      return false;
+
+    // if(inode_is_dir(inode) && inode_is_open(inode))
+    //   return false;
+
     block_sector_t ps = inode_parent(inode);
     struct inode * pi = inode_open(ps);
     struct dir * parent = dir_open(pi);
@@ -123,8 +130,9 @@ filesys_remove (const char *name)
 
     if(inode_is_dir(inode) && !dir_is_empty(dir_open(inode)))
       return false;
-    
+
     bool ret = dir_remove (parent, last_segment);
+    dir_close(parent);
     return ret;
   }
   return false;

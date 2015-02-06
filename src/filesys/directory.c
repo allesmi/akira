@@ -161,24 +161,38 @@ dir_resolve_deep (const char * path, struct inode ** out_inode)
 
   if(d == NULL || path[0] == '/')
     d = dir_open_root();
-  
+
   inode = dir_get_inode(d);
   for(token = strtok_r(path_copy, "/", &save_ptr); token != NULL; token = strtok_r(NULL, "/", &save_ptr))
   {
-    if(dir_lookup(d, token, &inode))
+    if(strlen(token) > 0)
     {
-      if(inode_is_dir(inode))
+      if(strcmp(token, ".") == 0)
       {
-        if(d != thread_current()->working_dir)
-          dir_close(d);
-        d = dir_open(inode);
+        continue;
       }
-    }
-    else
-    {
-      if(out_inode != NULL)
-        *out_inode = NULL;
-      return -1;
+      else if(strcmp(token, "..") == 0)
+      {
+        block_sector_t p = inode_parent(dir_get_inode(d));
+        // dir_close(d);
+        d = dir_open(inode_open(p));
+        inode = dir_get_inode(d);
+      }
+      else if(dir_lookup(d, token, &inode))
+      {
+        if(inode_is_dir(inode))
+        {
+          if(d != thread_current()->working_dir)
+            dir_close(d);
+          d = dir_open(inode);
+        }
+      }
+      else
+      {
+        if(out_inode != NULL)
+          *out_inode = NULL;
+        return -1;
+      }
     }
   }
   if(out_inode != NULL)

@@ -222,7 +222,7 @@ inode_create (block_sector_t sector, off_t length, bool is_dir, struct inode * p
       if(success)
       {
         cache_write(sector, &in.data);
-      }
+      }  
       free (disk_inode);
     }
   return success;
@@ -238,7 +238,7 @@ inode_open (block_sector_t sector)
   struct inode *inode;
 
   /* Check whether this inode is already open. */
-  for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
+  for (e = list_begin (&open_inodes); sector != ROOT_DIR_SECTOR && e != list_end (&open_inodes);
        e = list_next (e)) 
     {
       inode = list_entry (e, struct inode, elem);
@@ -300,8 +300,9 @@ inode_close (struct inode *inode)
       if (inode->removed) 
         {
           free_map_release (inode->sector, 1);
-          free_map_release (inode->data.start,
-                            bytes_to_sectors (inode->data.length)); 
+          // TODO
+          // free_map_release (inode->data.start,
+          //                   bytes_to_sectors (inode->data.length)); 
         }
 
       free (inode); 
@@ -489,4 +490,16 @@ bool
 inode_is_dir(const struct inode *inode)
 {
   return inode->data.is_dir > 0;
+}
+
+void
+inode_print(const struct inode *inode)
+{
+  printf("Inode %p at sector %d\n", inode, inode->sector);
+}
+
+bool
+inode_is_open(const struct inode *inode)
+{
+  return inode->open_cnt > 0;
 }

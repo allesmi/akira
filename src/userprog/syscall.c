@@ -207,20 +207,32 @@ syscall_handler (struct intr_frame *f)
 			}
 			else
 		 	{
-
-			if(!inode_is_dir (dir_or_file_node))
-			{
-				struct file *file = filesys_open (file_name);
-
-				if(file == NULL)
+				if(!inode_is_dir (dir_or_file_node))
 				{
-					f->eax = -1;
-					lock_release (&syscall_lock);
+					struct file *file = filesys_open (file_name);
+
+					if(file == NULL)
+					{
+						f->eax = -1;
+						lock_release (&syscall_lock);
+					}
+					else
+					{
+						tf->fdfile = file;
+						tf->is_dir = false;
+						tf->fd = current->last_fd;
+						current->last_fd++;
+
+						list_push_back (&current->thread_files, &tf->elem);
+						lock_release (&syscall_lock);
+
+						f->eax = tf->fd;
+					}
 				}
-				else
+				else if(inode_is_dir (dir_or_file_node))
 				{
-					tf->fdfile = file;
-					tf->is_dir = false;
+					tf->fddir = dir_open(dir_or_file_node);
+					tf->is_dir = true;
 					tf->fd = current->last_fd;
 					current->last_fd++;
 
@@ -229,24 +241,11 @@ syscall_handler (struct intr_frame *f)
 
 					f->eax = tf->fd;
 				}
-			}
-			else if(inode_is_dir (dir_or_file_node))
-			{
-				tf->fddir = dir_open(dir_or_file_node);
-				tf->is_dir = true;
-				tf->fd = current->last_fd;
-				current->last_fd++;
-
-				list_push_back (&current->thread_files, &tf->elem);
-				lock_release (&syscall_lock);
-
-				f->eax = tf->fd;
-			}
-			else
-			{
-				lock_release (&syscall_lock);
-				f->eax = -1;
-			}
+				else
+				{
+					lock_release (&syscall_lock);
+					f->eax = -1;
+				}
 		 	}
 
 			break;
@@ -503,7 +502,6 @@ syscall_handler (struct intr_frame *f)
 					f->eax = true;
 				}
 			}
-
 			break;
 		}
 		case SYS_MKDIR:
