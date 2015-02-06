@@ -341,9 +341,15 @@ syscall_handler (struct intr_frame *f)
 
 			lock_acquire (&syscall_lock);
 			struct thread_file * current_tf = get_thread_file (fd);
-			
-			if (current_tf != NULL && !current_tf->is_dir)
+
+			if (current_tf != NULL)
 			{
+				if(current_tf->is_dir)
+				{
+					f->eax = -1;
+					lock_release(&syscall_lock);
+					break;
+				}
 				f->eax = file_write (current_tf->fdfile, buf, size);
 			}
 			else if(fd == STDOUT_FILENO)
