@@ -29,6 +29,7 @@ void munmap (mapid_t mapping);
 struct thread_file * get_thread_file (int fd);
 static char *get_syscall_name (int syscall_nr);
 struct lock syscall_lock;	/* A lock for system calls */
+bool readdir (int fd, char* name);
 
 void
 syscall_init (void) 
@@ -195,6 +196,20 @@ syscall_handler (struct intr_frame *f)
 			struct thread_file * tf = malloc(sizeof (struct thread_file));
 
 			lock_acquire (&syscall_lock);
+
+			if(file_name[0] == '.')
+		 		{
+		 			tf->fddir = dir_resolve(file_name);
+					tf->is_dir = true;
+					tf->fd = current->last_fd;
+					current->last_fd++;
+
+					list_push_back (&current->thread_files, &tf->elem);
+					lock_release (&syscall_lock);
+
+					f->eax = tf->fd;
+					break;	
+		 	}
 
 			struct inode * dir_or_file_node;
 
@@ -538,13 +553,7 @@ syscall_handler (struct intr_frame *f)
 			}
 
 			int fd = *((int *) f->esp + 1);
-
-			char * name = *((char **) f->esp + 1);
-			if (name == NULL || !is_valid_user_pointer ((const void *) name))
-			{
-				f->eax = false;
-				break;
-			}
+			char  *name = (char *) (f->esp + 2);
 
 			struct thread_file * current_tf = get_thread_file (fd);	
 
@@ -555,7 +564,7 @@ syscall_handler (struct intr_frame *f)
 			}	
 
 			f->eax = dir_readdir (current_tf->fddir, name);
-
+			//printf("nameeeeeee %s\n", name);
 			break;
 		}
 		case SYS_ISDIR:
